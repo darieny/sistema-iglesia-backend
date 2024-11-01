@@ -17,12 +17,12 @@ export const uploadIglesia = multer({ storage });
 export const getAllIglesias = async (req, res) => {
   const sql = `
     SELECT iglesias.*, 
-           persona.Nombre_Persona AS Nombre_Pastor
+           persona.nombre_persona AS nombre_pastor
     FROM iglesias
-    LEFT JOIN persona ON iglesias.Id_Iglesia = persona.id_iglesia
-    LEFT JOIN cargo_persona cp ON persona.Id_Persona = cp.Id_Persona
-    LEFT JOIN cargo ON cp.Id_Cargo = cargo.Id_Cargo AND cargo.Nombre_Cargo = 'Pastor'
-    GROUP BY iglesias.Id_Iglesia, persona.Nombre_Persona;
+    LEFT JOIN persona ON iglesias.id_iglesia = persona.id_iglesia
+    LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
+    LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo AND cargo.nombre_cargo = 'Pastor'
+    GROUP BY iglesias.id_iglesia, persona.nombre_persona;
   `;
 
   try {
@@ -39,21 +39,21 @@ export const getIglesiaById = async (req, res) => {
   const id = req.params.id;
 
   const iglesiaSql = `
-    SELECT iglesias.Id_Iglesia, iglesias.Nombre_Iglesia, iglesias.Direccion_Iglesia, iglesias.Foto_Iglesia, iglesias.PuntoGPS, iglesias.Id_Distrito, 
-           persona.Nombre_Persona AS Nombre_Pastor, 
-           distritos.Nombre_Distrito,
-           array_agg(cargo.Nombre_Cargo) AS Cargos
+    SELECT iglesias.id_iglesia, iglesias.nombre_iglesia, iglesias.direccion_iglesia, iglesias.foto_iglesia, iglesias.puntogps, iglesias.id_distrito, 
+           persona.nombre_persona AS nombre_pastor, 
+           distritos.nombre_distrito,
+           array_agg(cargo.nombre_cargo) AS cargos
     FROM iglesias 
-    LEFT JOIN persona ON iglesias.Id_Iglesia = persona.id_iglesia 
-    LEFT JOIN distritos ON iglesias.Id_Distrito = distritos.Id_Distrito
-    LEFT JOIN cargo_persona cp ON persona.Id_Persona = cp.Id_Persona
-    LEFT JOIN cargo ON cp.Id_Cargo = cargo.Id_Cargo AND cargo.Nombre_Cargo = 'Pastor' 
-    WHERE iglesias.Id_Iglesia = $1 
-    GROUP BY iglesias.Id_Iglesia, persona.Nombre_Persona, distritos.Nombre_Distrito;
+    LEFT JOIN persona ON iglesias.id_iglesia = persona.id_iglesia 
+    LEFT JOIN distritos ON iglesias.id_distrito = distritos.id_distrito
+    LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
+    LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo AND cargo.nombre_cargo = 'Pastor' 
+    WHERE iglesias.id_iglesia = $1 
+    GROUP BY iglesias.id_iglesia, persona.nombre_persona, distritos.nombre_distrito;
   `;
 
   const bienesSql = `
-    SELECT bienes.Nombre_Bienes, bienes.Tipo_Bienes 
+    SELECT bienes.nombre_bienes, bienes.tipo_bienes 
     FROM bienes 
     WHERE bienes.iglesia_id_bienes = $1;
   `;
@@ -77,14 +77,14 @@ export const getIglesiaById = async (req, res) => {
 
 // Crear una nueva iglesia
 export const createIglesia = async (req, res) => {
-  const { Nombre_Iglesia, Direccion_Iglesia, PuntoGPS, Id_Distrito } = req.body;
+  const { nombre_iglesia, direccion_iglesia, puntogps, id_distrito } = req.body;
   const fotoIgle = req.file ? `/fotosIglesias/${req.file.filename}` : null;
 
   const sql = `
-    INSERT INTO iglesias (Nombre_Iglesia, Direccion_Iglesia, PuntoGPS, Foto_Iglesia, Id_Distrito) 
+    INSERT INTO iglesias (nombre_iglesia, direccion_iglesia, puntogps, foto_iglesia, id_distrito) 
     VALUES ($1, $2, $3, $4, $5) RETURNING *
   `;
-  const values = [Nombre_Iglesia, Direccion_Iglesia, PuntoGPS, fotoIgle, Id_Distrito];
+  const values = [nombre_iglesia, direccion_iglesia, puntogps, fotoIgle, id_distrito];
 
   try {
     const { rows } = await pool.query(sql, values);
@@ -98,15 +98,15 @@ export const createIglesia = async (req, res) => {
 // Actualizar una iglesia
 export const updateIglesia = async (req, res) => {
   const id = req.params.id;
-  const { Nombre_Iglesia, Direccion_Iglesia, PuntoGPS, Id_Distrito } = req.body;
+  const { nombre_iglesia, direccion_iglesia, puntogps, id_distrito } = req.body;
   const fotoIgle = req.file ? `/fotosIglesias/${req.file.filename}` : req.body.foto;
 
   const sql = `
     UPDATE iglesias 
-    SET Nombre_Iglesia = $1, Direccion_Iglesia = $2, PuntoGPS = $3, Foto_Iglesia = $4, Id_Distrito = $5 
-    WHERE Id_Iglesia = $6 RETURNING *
+    SET nombre_iglesia = $1, direccion_iglesia = $2, puntogps = $3, foto_iglesia = $4, id_distrito = $5 
+    WHERE id_iglesia = $6 RETURNING *
   `;
-  const values = [Nombre_Iglesia, Direccion_Iglesia, PuntoGPS, fotoIgle, Id_Distrito, id];
+  const values = [nombre_iglesia, direccion_iglesia, puntogps, fotoIgle, id_distrito, id];
 
   try {
     const { rows } = await pool.query(sql, values);
@@ -122,7 +122,7 @@ export const deleteIglesia = async (req, res) => {
   const id = req.params.id;
 
   const updatePersonasSql = 'UPDATE persona SET id_iglesia = NULL WHERE id_iglesia = $1';
-  const deleteIglesiaSql = 'DELETE FROM iglesias WHERE Id_Iglesia = $1 RETURNING *';
+  const deleteIglesiaSql = 'DELETE FROM iglesias WHERE id_iglesia = $1 RETURNING *';
 
   try {
     await pool.query(updatePersonasSql, [id]);
@@ -142,7 +142,7 @@ export const searchIglesias = async (req, res) => {
   const search = req.query.search || '';
   const sql = `
     SELECT * FROM iglesias 
-    WHERE Nombre_Iglesia ILIKE $1 OR Direccion_Iglesia ILIKE $2 OR PuntoGPS ILIKE $3
+    WHERE nombre_iglesia ILIKE $1 OR direccion_iglesia ILIKE $2 OR puntogps ILIKE $3
   `;
   const values = [`%${search}%`, `%${search}%`, `%${search}%`];
 

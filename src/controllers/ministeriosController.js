@@ -3,13 +3,13 @@ import pool from '../models/db.js'; // Cambié connection por pool para PostgreS
 // Obtener todos los ministerios para las cards, incluyendo el nombre del distrito
 export const getAllMinisterios = (req, res) => {
   const sql = `
-    SELECT ministerios."Id_Ministerio", 
-           ministerios."Nombre_Ministerio", 
-           ministerios."Descripcion", 
-           ministerios."Id_Distrito", 
-           distritos."Nombre_Distrito"
+    SELECT ministerios.id_ministerio, 
+           ministerios.nombre_ministerio, 
+           ministerios.descripcion, 
+           ministerios.id_distrito, 
+           distritos.nombre_distrito
     FROM ministerios
-    LEFT JOIN distritos ON ministerios."Id_Distrito" = distritos."Id_Distrito";
+    LEFT JOIN distritos ON ministerios.id_distrito = distritos.id_distrito;
   `;
   pool.query(sql, (err, result) => {
     if (err) {
@@ -22,19 +22,19 @@ export const getAllMinisterios = (req, res) => {
 
 // Crear un nuevo ministerio
 export const createMinisterio = (req, res) => {
-  const { Nombre_Ministerio, Descripcion, Id_Distrito, persona_id_director } = req.body;
+  const { nombre_ministerio, descripcion, id_distrito, persona_id_director } = req.body;
 
   // Validaciones básicas
-  if (!Nombre_Ministerio) {
+  if (!nombre_ministerio) {
     return res.status(400).json({ error: 'El nombre del ministerio es obligatorio' });
   }
 
   // SQL para insertar un nuevo ministerio
   const sql = `
-    INSERT INTO ministerios ("Nombre_Ministerio", "Descripcion", "Id_Distrito", "persona_id_director") 
-    VALUES ($1, $2, $3, $4) RETURNING "Id_Ministerio";
+    INSERT INTO ministerios (nombre_ministerio, descripcion, id_distrito, persona_id_director) 
+    VALUES ($1, $2, $3, $4) RETURNING id_ministerio;
   `;
-  const values = [Nombre_Ministerio, Descripcion || null, Id_Distrito || null, persona_id_director || null];
+  const values = [nombre_ministerio, descripcion || null, id_distrito || null, persona_id_director || null];
 
   pool.query(sql, values, (err, result) => {
     if (err) {
@@ -44,10 +44,10 @@ export const createMinisterio = (req, res) => {
 
     // Devuelve el ID generado por la base de datos
     res.json({
-      id: result.rows[0].Id_Ministerio,
-      Nombre_Ministerio,
-      Descripcion: Descripcion || 'Sin descripción',
-      Id_Distrito: Id_Distrito || null,
+      id: result.rows[0].id_ministerio,
+      nombre_ministerio,
+      descripcion: descripcion || 'Sin descripción',
+      id_distrito: id_distrito || null,
       persona_id_director: persona_id_director || null
     });
   });
@@ -56,7 +56,7 @@ export const createMinisterio = (req, res) => {
 // Obtener un ministerio por ID
 export const getMinisterioById = (req, res) => {
   const { id } = req.params;
-  const sql = 'SELECT * FROM ministerios WHERE "Id_Ministerio" = $1';
+  const sql = 'SELECT * FROM ministerios WHERE id_ministerio = $1';
 
   pool.query(sql, [id], (err, result) => {
     if (err) {
@@ -74,7 +74,7 @@ export const getMinisterioById = (req, res) => {
 
 // Obtener el ministerio_id de "Ministro Ordenado" por nombre
 export const getMinistroOrdenadoId = (req, res) => {
-  const sql = 'SELECT "Id_Ministerio" FROM ministerios WHERE "Nombre_Ministerio" = \'Ministro Ordenado\'';
+  const sql = 'SELECT id_ministerio FROM ministerios WHERE nombre_ministerio = \'Ministro Ordenado\'';
 
   pool.query(sql, (err, result) => {
     if (err) {
@@ -95,7 +95,7 @@ export const searchMinisterios = (req, res) => {
   const search = req.query.search || '';
   const sql = `
     SELECT * FROM ministerios 
-    WHERE "Nombre_Ministerio" ILIKE $1 OR "Descripcion" ILIKE $2
+    WHERE nombre_ministerio ILIKE $1 OR descripcion ILIKE $2
   `;
   const values = [`%${search}%`, `%${search}%`];
 
@@ -110,22 +110,22 @@ export const searchMinisterios = (req, res) => {
 
 // Obtener todos los ministerios, excluyendo "Ministro Ordenado"
 export const getMinisterios = (req, res) => {
-  const { Usuario_ID } = req.query;
+  const { usuario_id } = req.query;
 
-  console.log("Usuario_ID recibido en la petición:", Usuario_ID);
+  console.log("usuario_id recibido en la petición:", usuario_id);
 
   const sql = `
-    SELECT m."Id_Ministerio", m."Nombre_Ministerio"
+    SELECT m.id_ministerio, m.nombre_ministerio
     FROM ministerios m
-    JOIN persona_ministerio pm ON pm."Id_Ministerio" = m."Id_Ministerio"
-    JOIN persona p ON p."Id_Persona" = pm."Id_Persona"
-    JOIN cargo_persona cp ON cp."Id_Persona" = p."Id_Persona"
-    JOIN cargo c ON c."Id_Cargo" = cp."Id_Cargo"
-    WHERE p."Usuario_ID" = $1 
-      AND m."Nombre_Ministerio" != 'Ministro Ordenado'
+    JOIN persona_ministerio pm ON pm.id_ministerio = m.id_ministerio
+    JOIN persona p ON p.id_persona = pm.id_persona
+    JOIN cargo_persona cp ON cp.id_persona = p.id_persona
+    JOIN cargo c ON c.id_cargo = cp.id_cargo
+    WHERE p.usuario_id = $1 
+      AND m.nombre_ministerio != 'Ministro Ordenado'
   `;
 
-  pool.query(sql, [Usuario_ID], (err, result) => {
+  pool.query(sql, [usuario_id], (err, result) => {
     if (err) {
       console.error('Error al obtener los ministerios del usuario:', err);
       return res.status(500).json({ error: 'Error al obtener los ministerios del usuario' });
@@ -140,11 +140,11 @@ export const getReportesByMinisterio = (req, res) => {
   const { ministerioId } = req.params;
 
   const sql = `
-    SELECT r."Id_Reporte", r."Mes", r."Ano", 
-           p."Nombre_Persona" 
+    SELECT r.id_reporte, r.mes, r.ano, 
+           p.nombre_persona 
     FROM reportesmensuales r
-    JOIN persona p ON r."Persona_Id" = p."Id_Persona"
-    WHERE r."Ministerio_Id" = $1
+    JOIN persona p ON r.persona_id = p.id_persona
+    WHERE r.ministerio_id = $1
   `;
 
   pool.query(sql, [ministerioId], (err, reportes) => {

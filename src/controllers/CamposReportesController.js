@@ -11,7 +11,7 @@ export const createCamposReporte = async (req, res) => {
 
   // Construir la consulta de inserción con múltiples valores
   const sql = `
-    INSERT INTO tiposcamposreporte (ministerio_id, Nombre_Campo, Tipo_Dato) 
+    INSERT INTO tiposcamposreporte (ministerio_id, nombre_campo, tipo_dato) 
     VALUES ${campos.map((_, index) => `($${index * 3 + 1}, $${index * 3 + 2}, $${index * 3 + 3})`).join(', ')}
   `;
   const values = campos.flatMap(campo => [ministerio_id, campo.nombreCampo, campo.tipoDato]);
@@ -28,7 +28,7 @@ export const createCamposReporte = async (req, res) => {
 // Obtener los campos de un ministerio
 export const getCamposPorMinisterio = async (req, res) => {
   const { ministerio_id } = req.params;
-  const sql = 'SELECT Id_TipoCampo, Nombre_Campo, Tipo_Dato FROM tiposcamposreporte WHERE ministerio_id = $1';
+  const sql = 'SELECT id_tipocampo, nombre_campo, tipo_dato FROM tiposcamposreporte WHERE ministerio_id = $1';
 
   try {
     const { rows } = await pool.query(sql, [ministerio_id]);
@@ -41,20 +41,20 @@ export const getCamposPorMinisterio = async (req, res) => {
 
 // Guardar los valores de los campos de un reporte
 export const saveValoresCamposReporte = async (req, res) => {
-  const { Id_Reporte, valores } = req.body;
+  const { id_reporte, valores } = req.body;
 
   console.log('Datos recibidos para guardar los valores:', req.body);
 
-  if (!Id_Reporte || !valores?.length) {
+  if (!id_reporte || !valores?.length) {
     return res.status(400).json({ error: 'Datos inválidos para guardar los valores de los campos' });
   }
 
   // Construir la consulta de inserción con múltiples valores
   const sql = `
-    INSERT INTO valorescamposreporte (Id_Reporte, Id_TipoCampo, Valor) 
+    INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) 
     VALUES ${valores.map((_, index) => `($${index * 3 + 1}, $${index * 3 + 2}, $${index * 3 + 3})`).join(', ')}
   `;
-  const values = valores.flatMap(v => [Id_Reporte, v.Id_TipoCampo, v.Valor]);
+  const values = valores.flatMap(v => [id_reporte, v.id_tipocampo, v.valor]);
 
   try {
     await pool.query(sql, values);
@@ -67,16 +67,16 @@ export const saveValoresCamposReporte = async (req, res) => {
 
 // Obtener los valores de los campos de un reporte específico
 export const getValoresCamposPorReporte = async (req, res) => {
-  const { Id_Reporte } = req.params;
+  const { id_reporte } = req.params;
   const sql = `
-    SELECT valorescamposreporte.Id_TipoCampo, tiposcamposreporte.Nombre_Campo, valorescamposreporte.Valor
+    SELECT valorescamposreporte.id_tipocampo, tiposcamposreporte.nombre_campo, valorescamposreporte.valor
     FROM valorescamposreporte
-    INNER JOIN tiposcamposreporte ON valorescamposreporte.Id_TipoCampo = tiposcamposreporte.Id_TipoCampo
-    WHERE valorescamposreporte.Id_Reporte = $1
+    INNER JOIN tiposcamposreporte ON valorescamposreporte.id_tipocampo = tiposcamposreporte.id_tipocampo
+    WHERE valorescamposreporte.id_reporte = $1
   `;
 
   try {
-    const { rows } = await pool.query(sql, [Id_Reporte]);
+    const { rows } = await pool.query(sql, [id_reporte]);
     res.json(rows);
   } catch (err) {
     console.error('Error al obtener los valores de los campos del reporte:', err);

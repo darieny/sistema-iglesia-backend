@@ -16,22 +16,22 @@ export const createUser = async (req, res) => {
 
     // Insertar el nuevo usuario en la tabla login
     const sqlInsertUser = `
-      INSERT INTO login (Usuario, Contrasena, Fecha_Registro, Activo) 
-      VALUES ($1, $2, $3, $4) RETURNING Id_Usuarios
+      INSERT INTO login (usuario, contrasena, fecha_registro, activo) 
+      VALUES ($1, $2, $3, $4) RETURNING id_usuarios
     `;
 
     const { rows } = await pool.query(sqlInsertUser, [username, hashedPassword, fechaRegistro, activo]);
     const idUsuario = rows[0].id_usuarios;
 
-    // Insertar los roles en la tabla RolesUsuarios
-    const sqlInsertRoles = 'INSERT INTO rolesusuarios (Id_Usuarios, Id_Rol) VALUES ($1, $2)';
+    // Insertar los roles en la tabla rolesusuarios
+    const sqlInsertRoles = 'INSERT INTO rolesusuarios (id_usuarios, id_rol) VALUES ($1, $2)';
 
     for (const rolId of selectedRoles) {
       await pool.query(sqlInsertRoles, [idUsuario, rolId]);
     }
 
-    // Actualizar la tabla persona para asociar la persona seleccionada con el Id_Usuarios
-    const sqlUpdatePersona = 'UPDATE persona SET Usuario_ID = $1 WHERE Id_Persona = $2';
+    // Actualizar la tabla persona para asociar la persona seleccionada con el id_usuarios
+    const sqlUpdatePersona = 'UPDATE persona SET usuario_id = $1 WHERE id_persona = $2';
     await pool.query(sqlUpdatePersona, [idUsuario, selectedPersona]);
 
     res.status(201).json({ message: 'Usuario creado exitosamente', id: idUsuario });
@@ -60,25 +60,25 @@ export const getUserById = async (req, res) => {
 
   const sql = `
     SELECT 
-      l.Id_Usuarios, 
-      l.Usuario, 
-      p.Nombre_Persona, 
-      p.Telefono_Persona, 
-      p.Direccion_Persona, 
-      p.Fecha_Nacimiento, 
-      STRING_AGG(r.Nombre_Rol, ', ') AS Roles
+      l.id_usuarios, 
+      l.usuario, 
+      p.nombre_persona, 
+      p.telefono_persona, 
+      p.direccion_persona, 
+      p.fecha_nacimiento, 
+      STRING_AGG(r.nombre_rol, ', ') AS roles
     FROM login l
-    LEFT JOIN persona p ON l.Id_Usuarios = p.Usuario_ID
-    LEFT JOIN rolesusuarios ru ON l.Id_Usuarios = ru.Id_Usuarios
-    LEFT JOIN roles r ON ru.Id_Rol = r.Id_Rol
-    WHERE l.Id_Usuarios = $1
+    LEFT JOIN persona p ON l.id_usuarios = p.usuario_id
+    LEFT JOIN rolesusuarios ru ON l.id_usuarios = ru.id_usuarios
+    LEFT JOIN roles r ON ru.id_rol = r.id_rol
+    WHERE l.id_usuarios = $1
     GROUP BY 
-      l.Id_Usuarios, 
-      l.Usuario, 
-      p.Nombre_Persona, 
-      p.Telefono_Persona, 
-      p.Direccion_Persona, 
-      p.Fecha_Nacimiento;
+      l.id_usuarios, 
+      l.usuario, 
+      p.nombre_persona, 
+      p.telefono_persona, 
+      p.direccion_persona, 
+      p.fecha_nacimiento;
   `;
 
   try {

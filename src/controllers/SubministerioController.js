@@ -15,21 +15,21 @@ export const getAllSubministerios = async (req, res) => {
 
 // Crear un nuevo subministerio
 export const createSubministerio = async (req, res) => {
-  const { Nombre_Subministerio, id_ministerio, Id_Persona_Director } = req.body;
+  const { nombre_subministerio, id_ministerio, id_persona_director } = req.body;
   
-  console.log('Datos recibidos en el backend:', { Nombre_Subministerio, id_ministerio, Id_Persona_Director });
+  console.log('Datos recibidos en el backend:', { nombre_subministerio, id_ministerio, id_persona_director });
 
-  if (!Nombre_Subministerio || !id_ministerio || !Id_Persona_Director) {
+  if (!nombre_subministerio || !id_ministerio || !id_persona_director) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
 
   const sql = `
-    INSERT INTO subministerios (Nombre_Subministerio, id_ministerio, Id_Persona_Director) 
-    VALUES ($1, $2, $3) RETURNING Id_Subministerio
+    INSERT INTO subministerios (nombre_subministerio, id_ministerio, id_persona_director) 
+    VALUES ($1, $2, $3) RETURNING id_subministerio
   `;
 
   try {
-    const { rows } = await pool.query(sql, [Nombre_Subministerio, id_ministerio, Id_Persona_Director]);
+    const { rows } = await pool.query(sql, [nombre_subministerio, id_ministerio, id_persona_director]);
     res.status(201).json({ message: 'Subministerio agregado exitosamente', id: rows[0].id_subministerio });
   } catch (err) {
     console.error('Error al crear subministerio:', err);
@@ -40,7 +40,7 @@ export const createSubministerio = async (req, res) => {
 // Obtener un subministerio por ID
 export const getSubministerioById = async (req, res) => {
   const { id } = req.params;
-  const sql = 'SELECT * FROM subministerios WHERE Id_Subministerio = $1';
+  const sql = 'SELECT * FROM subministerios WHERE id_subministerio = $1';
 
   try {
     const { rows } = await pool.query(sql, [id]);
@@ -57,7 +57,7 @@ export const getSubministerioById = async (req, res) => {
 // Buscar subministerios
 export const searchSubministerios = async (req, res) => {
   const search = req.query.search || '';
-  const sql = 'SELECT * FROM subministerios WHERE Nombre_Subministerio ILIKE $1';
+  const sql = 'SELECT * FROM subministerios WHERE nombre_subministerio ILIKE $1';
   const values = [`%${search}%`];
 
   try {

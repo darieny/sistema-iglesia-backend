@@ -1,5 +1,5 @@
 import multer from 'multer';
-import pool from '../models/db.js'; // Cambié connection por pool para PostgreSQL
+import pool from '../models/db.js';
 
 // Multer para almacenar las fotos en una carpeta llamada "fotosPerfil"
 const storage = multer.diskStorage({
@@ -16,12 +16,12 @@ export const upload = multer({ storage });
 // Listar todas las personas con sus cargos
 export const getAllPersonas = (req, res) => {
     const sql = `
-        SELECT persona.*, iglesias."Nombre_Iglesia", STRING_AGG(cargo."Nombre_Cargo", ', ') AS "Cargos"
+        SELECT persona.*, iglesias.nombre_iglesia, STRING_AGG(cargo.nombre_cargo, ', ') AS cargos
         FROM persona
-        LEFT JOIN iglesias ON persona."id_iglesia" = iglesias."Id_Iglesia"
-        LEFT JOIN cargo_persona cp ON persona."Id_Persona" = cp."Id_Persona"
-        LEFT JOIN cargo ON cp."Id_Cargo" = cargo."Id_Cargo"
-        GROUP BY persona."Id_Persona"
+        LEFT JOIN iglesias ON persona.id_iglesia = iglesias.id_iglesia
+        LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
+        LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo
+        GROUP BY persona.id_persona
     `;
     pool.query(sql, (err, result) => {
         if (err) {
@@ -37,16 +37,16 @@ export const getPersonaById = (req, res) => {
     const id = req.params.id;
     const sql = `
         SELECT persona.*, 
-               iglesias."Nombre_Iglesia", 
-               distritos."Nombre_Distrito", 
-               STRING_AGG(cargo."Nombre_Cargo", ', ') AS "Cargos"
+               iglesias.nombre_iglesia, 
+               distritos.nombre_distrito, 
+               STRING_AGG(cargo.nombre_cargo, ', ') AS cargos
         FROM persona
-        LEFT JOIN iglesias ON persona."id_iglesia" = iglesias."Id_Iglesia"
-        LEFT JOIN distritos ON persona."Id_Distrito" = distritos."Id_Distrito"
-        LEFT JOIN cargo_persona cp ON persona."Id_Persona" = cp."Id_Persona"
-        LEFT JOIN cargo ON cp."Id_Cargo" = cargo."Id_Cargo"
-        WHERE persona."Id_Persona" = $1
-        GROUP BY persona."Id_Persona";
+        LEFT JOIN iglesias ON persona.id_iglesia = iglesias.id_iglesia
+        LEFT JOIN distritos ON persona.id_distrito = distritos.id_distrito
+        LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
+        LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo
+        WHERE persona.id_persona = $1
+        GROUP BY persona.id_persona;
     `;
 
     pool.query(sql, [id], (err, result) => {
@@ -70,12 +70,12 @@ export const getPersonasByIglesiaId = (req, res) => {
     }
 
     const sql = `
-        SELECT persona.*, STRING_AGG(cargo."Nombre_Cargo", ', ') AS "Cargos"
+        SELECT persona.*, STRING_AGG(cargo.nombre_cargo, ', ') AS cargos
         FROM persona
-        LEFT JOIN cargo_persona cp ON persona."Id_Persona" = cp."Id_Persona"
-        LEFT JOIN cargo ON cp."Id_Cargo" = cargo."Id_Cargo"
-        WHERE persona."id_iglesia" = $1 AND cargo."Nombre_Cargo" = 'Pastor'
-        GROUP BY persona."Id_Persona";
+        LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
+        LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo
+        WHERE persona.id_iglesia = $1 AND cargo.nombre_cargo = 'Pastor'
+        GROUP BY persona.id_persona;
     `;
     pool.query(sql, [id_iglesia], (err, result) => {
         if (err) {
@@ -88,39 +88,39 @@ export const getPersonasByIglesiaId = (req, res) => {
 
 // Obtener los IDs de los cargos según los nombres
 const getCargosIds = (cargos, callback) => {
-    const sql = `SELECT "Id_Cargo" FROM cargo WHERE "Nombre_Cargo" = ANY($1)`;
+    const sql = `SELECT id_cargo FROM cargo WHERE nombre_cargo = ANY($1)`;
     pool.query(sql, [cargos], (err, result) => {
         if (err) {
             console.error('Error obteniendo IDs de cargos:', err);
             return callback(err);
         }
-        const cargosIds = result.rows.map(cargo => cargo.Id_Cargo);
+        const cargosIds = result.rows.map(cargo => cargo.id_cargo);
         callback(null, cargosIds);
     });
 };
 
 // Crear una nueva persona
 export const createPersona = (req, res) => {
-    const { Nombre_Persona, Telefono_Persona, Direccion_Persona, Fecha_Nacimiento, cargos, ministerios, id_iglesia, Id_Distrito } = req.body;
+    const { nombre_persona, telefono_persona, direccion_persona, fecha_nacimiento, cargos, ministerios, id_iglesia, id_distrito } = req.body;
     const foto = req.file ? `/fotosPerfil/${req.file.filename}` : null;
 
     const newPersona = {
-        Nombre_Persona,
-        Telefono_Persona,
-        Direccion_Persona,
-        Fecha_Nacimiento,
-        Foto_Persona: foto,
+        nombre_persona,
+        telefono_persona,
+        direccion_persona,
+        fecha_nacimiento,
+        foto_persona: foto,
         id_iglesia: id_iglesia || null,
-        Id_Distrito: Id_Distrito || null
+        id_distrito: id_distrito || null
     };
 
     const sqlInsertPersona = `
-        INSERT INTO persona ("Nombre_Persona", "Telefono_Persona", "Direccion_Persona", "Fecha_Nacimiento", "Foto_Persona", "id_iglesia", "Id_Distrito")
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING "Id_Persona";
+        INSERT INTO persona (nombre_persona, telefono_persona, direccion_persona, fecha_nacimiento, foto_persona, id_iglesia, id_distrito)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id_persona;
     `;
     const values = [
-        newPersona.Nombre_Persona, newPersona.Telefono_Persona, newPersona.Direccion_Persona,
-        newPersona.Fecha_Nacimiento, newPersona.Foto_Persona, newPersona.id_iglesia, newPersona.Id_Distrito
+        newPersona.nombre_persona, newPersona.telefono_persona, newPersona.direccion_persona,
+        newPersona.fecha_nacimiento, newPersona.foto_persona, newPersona.id_iglesia, newPersona.id_distrito
     ];
 
     pool.query(sqlInsertPersona, values, (err, result) => {
@@ -129,7 +129,7 @@ export const createPersona = (req, res) => {
             return res.status(500).json({ error: 'Error creando la persona.' });
         }
 
-        const personaId = result.rows[0].Id_Persona;
+        const personaId = result.rows[0].id_persona;
         processCargosAndMinisterios(personaId, cargos, ministerios, res, newPersona);
     });
 };
@@ -143,7 +143,7 @@ const processCargosAndMinisterios = (personaId, cargos, ministerios, res, newPer
                 return res.status(500).json({ error: 'Error obteniendo IDs de cargos.' });
             }
 
-            const sqlInsertCargos = 'INSERT INTO cargo_persona ("Id_Persona", "Id_Cargo") VALUES ($1, $2)';
+            const sqlInsertCargos = 'INSERT INTO cargo_persona (id_persona, id_cargo) VALUES ($1, $2)';
             const cargoValues = cargoIds.map((cargoId) => [personaId, cargoId]);
 
             pool.query(sqlInsertCargos, [cargoValues], (err) => {
@@ -162,7 +162,7 @@ const processCargosAndMinisterios = (personaId, cargos, ministerios, res, newPer
 // Asignar ministerios a la persona
 const assignMinisterios = (personaId, ministerios, res, newPersona) => {
     if (ministerios.length > 0) {
-        const sqlInsertMinisterios = 'INSERT INTO persona_ministerio ("Id_Persona", "Id_Ministerio") VALUES ($1, $2)';
+        const sqlInsertMinisterios = 'INSERT INTO persona_ministerio (id_persona, id_ministerio) VALUES ($1, $2)';
         const ministerioValues = ministerios.map(ministerioId => [personaId, ministerioId]);
 
         pool.query(sqlInsertMinisterios, [ministerioValues], (err) => {
@@ -180,17 +180,17 @@ const assignMinisterios = (personaId, ministerios, res, newPersona) => {
 // Actualizar una persona
 export const updatePersona = (req, res) => {
     const id = req.params.id;
-    const { Nombre_Persona, Telefono_Persona, Direccion_Persona, Fecha_Nacimiento, cargos, ministerios, id_iglesia, Id_Distrito } = req.body;
+    const { nombre_persona, telefono_persona, direccion_persona, fecha_nacimiento, cargos, ministerios, id_iglesia, id_distrito } = req.body;
 
     const updatedPersona = {};
-    if (Nombre_Persona) updatedPersona.Nombre_Persona = Nombre_Persona;
-    if (Telefono_Persona) updatedPersona.Telefono_Persona = Telefono_Persona;
-    if (Direccion_Persona) updatedPersona.Direccion_Persona = Direccion_Persona;
-    if (Fecha_Nacimiento) updatedPersona.Fecha_Nacimiento = Fecha_Nacimiento;
+    if (nombre_persona) updatedPersona.nombre_persona = nombre_persona;
+    if (telefono_persona) updatedPersona.telefono_persona = telefono_persona;
+    if (direccion_persona) updatedPersona.direccion_persona = direccion_persona;
+    if (fecha_nacimiento) updatedPersona.fecha_nacimiento = fecha_nacimiento;
     if (id_iglesia) updatedPersona.id_iglesia = id_iglesia;
-    if (Id_Distrito) updatedPersona.Id_Distrito = Id_Distrito;
+    if (id_distrito) updatedPersona.id_distrito = id_distrito;
 
-    const sqlUpdatePersona = 'UPDATE persona SET $1 WHERE "Id_Persona" = $2';
+    const sqlUpdatePersona = 'UPDATE persona SET $1 WHERE id_persona = $2';
     pool.query(sqlUpdatePersona, [updatedPersona, id], (err) => {
         if (err) {
             console.error('Error actualizando la persona:', err);
@@ -203,7 +203,7 @@ export const updatePersona = (req, res) => {
 // Eliminar una persona
 export const deletePersona = (req, res) => {
     const id = req.params.id;
-    const sqlDeletePersona = 'DELETE FROM persona WHERE "Id_Persona" = $1';
+    const sqlDeletePersona = 'DELETE FROM persona WHERE id_persona = $1';
     pool.query(sqlDeletePersona, [id], (err, result) => {
         if (err) {
             console.error('Error eliminando persona:', err);
@@ -217,13 +217,13 @@ export const deletePersona = (req, res) => {
 export const searchPersonas = (req, res) => {
     const search = req.query.search || '';
     const sql = `
-        SELECT persona.*, iglesias."Nombre_Iglesia", STRING_AGG(cargo."Nombre_Cargo", ', ') AS "Cargos"
+        SELECT persona.*, iglesias.nombre_iglesia, STRING_AGG(cargo.nombre_cargo, ', ') AS cargos
         FROM persona
-        LEFT JOIN iglesias ON persona."id_iglesia" = iglesias."Id_Iglesia"
-        LEFT JOIN cargo_persona cp ON persona."Id_Persona" = cp."Id_Persona"
-        LEFT JOIN cargo ON cp."Id_Cargo" = cargo."Id_Cargo"
-        WHERE persona."Nombre_Persona" ILIKE $1 OR persona."Direccion_Persona" ILIKE $1 OR cargo."Nombre_Cargo" ILIKE $1 OR persona."Telefono_Persona" ILIKE $1
-        GROUP BY persona."Id_Persona";
+        LEFT JOIN iglesias ON persona.id_iglesia = iglesias.id_iglesia
+        LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
+        LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo
+        WHERE persona.nombre_persona ILIKE $1 OR persona.direccion_persona ILIKE $1 OR cargo.nombre_cargo ILIKE $1 OR persona.telefono_persona ILIKE $1
+        GROUP BY persona.id_persona;
     `;
     const values = [`%${search}%`];
     pool.query(sql, values, (err, result) => {
@@ -234,9 +234,9 @@ export const searchPersonas = (req, res) => {
 
 // Obtener el Persona_Id desde el Usuario_ID
 export const getPersonaByUsuarioId = (req, res) => {
-    const { Usuario_ID } = req.params;
-    const sql = 'SELECT "Id_Persona" FROM persona WHERE "Usuario_ID" = $1';
-    pool.query(sql, [Usuario_ID], (err, result) => {
+    const { usuario_id } = req.params;
+    const sql = 'SELECT id_persona FROM persona WHERE usuario_id = $1';
+    pool.query(sql, [usuario_id], (err, result) => {
         if (err) {
             console.error('Error al obtener Persona_Id:', err);
             return res.status(500).json({ error: 'Error al obtener Persona_Id' });
@@ -244,6 +244,6 @@ export const getPersonaByUsuarioId = (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'No se encontró Persona_Id para el Usuario_ID' });
         }
-        res.json({ Persona_Id: result.rows[0].Id_Persona });
+        res.json({ id_persona: result.rows[0].id_persona });
     });
 };

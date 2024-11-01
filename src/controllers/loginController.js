@@ -5,13 +5,13 @@ import jwt from 'jsonwebtoken';
 export const login = async (req, res) => {
   const { username, password } = req.body;
 
-  // Consulta que une la tabla login con roles y persona para obtener también el Id_Persona
+  // Consulta que une la tabla login con roles y persona para obtener también el id_persona
   const consult = `
-    SELECT login.*, roles.Nombre_Rol, persona.id_iglesia, persona.Id_Distrito, persona.Id_Persona
+    SELECT login.*, roles.nombre_rol, persona.id_iglesia, persona.id_distrito, persona.id_persona
     FROM login
-    JOIN rolesusuarios ON login.Id_Usuarios = rolesusuarios.Id_Usuarios
-    JOIN roles ON rolesusuarios.Id_Rol = roles.Id_Rol
-    LEFT JOIN persona ON login.Id_Usuarios = persona.Usuario_ID
+    JOIN rolesusuarios ON login.id_usuarios = rolesusuarios.id_usuarios
+    JOIN roles ON rolesusuarios.id_rol = roles.id_rol
+    LEFT JOIN persona ON login.id_usuarios = persona.usuario_id
     WHERE login.usuario = $1
   `;
 
@@ -46,7 +46,7 @@ export const login = async (req, res) => {
           username: user.usuario, 
           roles: roles,  // Incluimos todos los roles como un array
           userId: user.id_usuarios, 
-          personaId: user.id_persona,  // Incluimos Id_Persona en el token
+          personaId: user.id_persona,  // Incluimos id_persona en el token
           iglesia_id: user.id_iglesia,
           distrito_id: user.id_distrito 
         },  
@@ -54,8 +54,8 @@ export const login = async (req, res) => {
         { expiresIn: '3m' } // El token expira en 3 minutos
       );
 
-      // Devolvemos el token y el Id_Persona como parte de la respuesta JSON
-      res.status(200).json({ token, personaId: user.id_persona }); // También devolvemos Id_Persona
+      // Devolvemos el token y el id_persona como parte de la respuesta JSON
+      res.status(200).json({ token, personaId: user.id_persona }); // También devolvemos id_persona
     });
   } catch (err) {
     console.error('Error en el proceso de autenticación:', err);

@@ -55,7 +55,7 @@ export const resetPassword = async (req, res) => {
   try {
     const sql = `
       UPDATE login 
-      SET Contrasena = $1, reset_token = NULL, reset_expires = NULL 
+      SET contrasena = $1, reset_token = NULL, reset_expires = NULL 
       WHERE reset_token = $2 AND reset_expires > $3
     `;
     const result = await pool.query(sql, [hashedPassword, token, Date.now()]);

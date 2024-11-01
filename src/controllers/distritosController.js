@@ -2,7 +2,7 @@ import pool from '../models/db.js';
 
 // Validar si la persona existe
 const verifyPersonaExists = async (personaId) => {
-  const sql = 'SELECT COUNT(*) FROM persona WHERE Id_Persona = $1';
+  const sql = 'SELECT COUNT(*) FROM persona WHERE id_persona = $1';
   try {
     const { rows } = await pool.query(sql, [personaId]);
     return rows[0].count > 0;
@@ -26,7 +26,7 @@ export const getAllDistritos = async (req, res) => {
 
 // Obtener un distrito por ID
 export const getDistritoById = async (req, res) => {
-  const sql = 'SELECT * FROM distritos WHERE Id_Distrito = $1';
+  const sql = 'SELECT * FROM distritos WHERE id_distrito = $1';
   const id = req.params.id;
   try {
     const { rows } = await pool.query(sql, [id]);
@@ -39,7 +39,7 @@ export const getDistritoById = async (req, res) => {
 
 // Crear un nuevo distrito con validaciones
 export const createDistrito = async (req, res) => {
-  const { Nombre_Distrito, persona_id_distrito } = req.body;
+  const { nombre_distrito, persona_id_distrito } = req.body;
 
   try {
     // Verificar que la persona asignada existe
@@ -48,8 +48,8 @@ export const createDistrito = async (req, res) => {
       return res.status(400).json({ error: 'La persona asignada no existe.' });
     }
 
-    const sql = 'INSERT INTO distritos (Nombre_Distrito, persona_id_distrito) VALUES ($1, $2) RETURNING *';
-    const values = [Nombre_Distrito, persona_id_distrito];
+    const sql = 'INSERT INTO distritos (nombre_distrito, persona_id_distrito) VALUES ($1, $2) RETURNING *';
+    const values = [nombre_distrito, persona_id_distrito];
     const { rows } = await pool.query(sql, values);
     res.json(rows[0]);
   } catch (err) {
@@ -61,7 +61,7 @@ export const createDistrito = async (req, res) => {
 // Actualizar un distrito con validaciones
 export const updateDistrito = async (req, res) => {
   const id = req.params.id;
-  const { Nombre_Distrito, persona_id_distrito } = req.body;
+  const { nombre_distrito, persona_id_distrito } = req.body;
 
   try {
     // Verificar que la persona asignada existe
@@ -70,8 +70,8 @@ export const updateDistrito = async (req, res) => {
       return res.status(400).json({ error: 'La persona asignada no existe.' });
     }
 
-    const sql = 'UPDATE distritos SET Nombre_Distrito = $1, persona_id_distrito = $2 WHERE Id_Distrito = $3 RETURNING *';
-    const values = [Nombre_Distrito, persona_id_distrito, id];
+    const sql = 'UPDATE distritos SET nombre_distrito = $1, persona_id_distrito = $2 WHERE id_distrito = $3 RETURNING *';
+    const values = [nombre_distrito, persona_id_distrito, id];
     const { rows } = await pool.query(sql, values);
     res.json(rows[0]);
   } catch (err) {
@@ -83,7 +83,7 @@ export const updateDistrito = async (req, res) => {
 // Eliminar un distrito
 export const deleteDistrito = async (req, res) => {
   const id = req.params.id;
-  const sql = 'DELETE FROM distritos WHERE Id_Distrito = $1 RETURNING *';
+  const sql = 'DELETE FROM distritos WHERE id_distrito = $1 RETURNING *';
   try {
     const { rows } = await pool.query(sql, [id]);
     if (rows.length === 0) {
@@ -100,10 +100,10 @@ export const deleteDistrito = async (req, res) => {
 export const searchDistritos = async (req, res) => {
   const search = req.query.search || '';
   const sql = `
-    SELECT distritos.*, persona.Nombre_Persona
+    SELECT distritos.*, persona.nombre_persona
     FROM distritos 
-    LEFT JOIN persona ON distritos.persona_id_distrito = persona.Id_Persona
-    WHERE distritos.Nombre_Distrito ILIKE $1 OR persona.Nombre_Persona ILIKE $2
+    LEFT JOIN persona ON distritos.persona_id_distrito = persona.id_persona
+    WHERE distritos.nombre_distrito ILIKE $1 OR persona.nombre_persona ILIKE $2
   `;
   const values = [`%${search}%`, `%${search}%`];
 
@@ -120,10 +120,10 @@ export const searchDistritos = async (req, res) => {
 export const getReportesByDistrito = async (req, res) => {
   const id = req.params.id;
   const sql = `
-    SELECT reportes.*, persona.Nombre_Persona, ministerios.Nombre_Ministerio
+    SELECT reportes.*, persona.nombre_persona, ministerios.nombre_ministerio
     FROM reportes
-    JOIN persona ON reportes.persona_id_reporte = persona.Id_Persona
-    JOIN ministerios ON reportes.ministerio_id_reporte = ministerios.Id_Ministerio
+    JOIN persona ON reportes.persona_id_reporte = persona.id_persona
+    JOIN ministerios ON reportes.ministerio_id_reporte = ministerios.id_ministerio
     WHERE reportes.distrito_id_reporte = $1
   `;
 
@@ -140,46 +140,46 @@ export const getReportesByDistrito = async (req, res) => {
 export const getDistritoData = async (req, res) => {
   const sql = `
     SELECT 
-        d.Id_Distrito, 
-        d.Nombre_Distrito,
-        (SELECT COUNT(*) FROM iglesias WHERE iglesias.Id_Distrito = d.Id_Distrito) AS num_iglesias,
-        (SELECT COUNT(DISTINCT p.Id_Persona) 
+        d.id_distrito, 
+        d.nombre_distrito,
+        (SELECT COUNT(*) FROM iglesias WHERE iglesias.id_distrito = d.id_distrito) AS num_iglesias,
+        (SELECT COUNT(DISTINCT p.id_persona) 
             FROM persona p 
-            JOIN cargo_persona cp ON p.Id_Persona = cp.Id_Persona 
-            JOIN cargo c ON cp.Id_Cargo = c.Id_Cargo 
-            WHERE c.Nombre_Cargo = 'Pastor' AND p.Id_Distrito = d.Id_Distrito) AS num_pastores,
-        (SELECT COUNT(*) FROM ministerios WHERE ministerios.Id_Distrito = d.Id_Distrito) AS num_ministerios,
-        (SELECT COUNT(DISTINCT p.Id_Persona) 
+            JOIN cargo_persona cp ON p.id_persona = cp.id_persona 
+            JOIN cargo c ON cp.id_cargo = c.id_cargo 
+            WHERE c.nombre_cargo = 'Pastor' AND p.id_distrito = d.id_distrito) AS num_pastores,
+        (SELECT COUNT(*) FROM ministerios WHERE ministerios.id_distrito = d.id_distrito) AS num_ministerios,
+        (SELECT COUNT(DISTINCT p.id_persona) 
             FROM persona p 
-            JOIN ministrosordenados mo ON p.Id_Persona = mo.Persona_Id_Ministros 
-            WHERE p.Id_Distrito = d.Id_Distrito) AS num_ministros_ordenados
+            JOIN ministrosordenados mo ON p.id_persona = mo.persona_id_ministros 
+            WHERE p.id_distrito = d.id_distrito) AS num_ministros_ordenados
     FROM distritos d
-    WHERE d.Nombre_Distrito != 'Área General'
+    WHERE d.nombre_distrito != 'Área General'
 
     UNION ALL
 
     SELECT 
-        3 AS Id_Distrito, 
-        'Área General' AS Nombre_Distrito,
+        3 AS id_distrito, 
+        'Área General' AS nombre_distrito,
         SUM(iglesias_count) AS num_iglesias,
         SUM(pastores_count) AS num_pastores,
         SUM(ministerios_count) AS num_ministerios,
         SUM(ministros_count) AS num_ministros_ordenados
     FROM (
         SELECT 
-            (SELECT COUNT(*) FROM iglesias WHERE iglesias.Id_Distrito = d.Id_Distrito) AS iglesias_count,
-            (SELECT COUNT(DISTINCT p.Id_Persona) 
+            (SELECT COUNT(*) FROM iglesias WHERE iglesias.id_distrito = d.id_distrito) AS iglesias_count,
+            (SELECT COUNT(DISTINCT p.id_persona) 
                 FROM persona p 
-                JOIN cargo_persona cp ON p.Id_Persona = cp.Id_Persona 
-                JOIN cargo c ON cp.Id_Cargo = c.Id_Cargo 
-                WHERE c.Nombre_Cargo = 'Pastor' AND p.Id_Distrito = d.Id_Distrito) AS pastores_count,
-            (SELECT COUNT(*) FROM ministerios WHERE ministerios.Id_Distrito = d.Id_Distrito) AS ministerios_count,
-            (SELECT COUNT(DISTINCT p.Id_Persona) 
+                JOIN cargo_persona cp ON p.id_persona = cp.id_persona 
+                JOIN cargo c ON cp.id_cargo = c.id_cargo 
+                WHERE c.nombre_cargo = 'Pastor' AND p.id_distrito = d.id_distrito) AS pastores_count,
+            (SELECT COUNT(*) FROM ministerios WHERE ministerios.id_distrito = d.id_distrito) AS ministerios_count,
+            (SELECT COUNT(DISTINCT p.id_persona) 
                 FROM persona p 
-                JOIN ministrosordenados mo ON p.Id_Persona = mo.Persona_Id_Ministros 
-                WHERE p.Id_Distrito = d.Id_Distrito) AS ministros_count
+                JOIN ministrosordenados mo ON p.id_persona = mo.persona_id_ministros 
+                WHERE p.id_distrito = d.id_distrito) AS ministros_count
         FROM distritos d
-        WHERE d.Id_Distrito IN (1, 2)
+        WHERE d.id_distrito IN (1, 2)
     ) AS suma;
   `;
 

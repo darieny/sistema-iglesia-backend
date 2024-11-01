@@ -2,7 +2,7 @@ import pool from '../models/db.js';
 
 // Verificar si el ministro ordenado existe
 const verifyMinistroExists = async (ministroId) => {
-  const sql = 'SELECT COUNT(*) FROM ministrosordenados WHERE Id_Ministro = $1';
+  const sql = 'SELECT COUNT(*) FROM ministrosordenados WHERE id_ministro = $1';
   try {
     const { rows } = await pool.query(sql, [ministroId]);
     return rows[0].count > 0;
@@ -14,14 +14,14 @@ const verifyMinistroExists = async (ministroId) => {
 
 // Crear un ministro ordenado
 export const createMinistroOrdenado = async (req, res) => {
-  const { Persona_Id_Ministros, Numero_Licencia } = req.body;
+  const { persona_id_ministros, numero_licencia } = req.body;
 
   const sql = `
-    INSERT INTO ministrosordenados (Persona_Id_Ministros, Numero_Licencia) 
+    INSERT INTO ministrosordenados (persona_id_ministros, numero_licencia) 
     VALUES ($1, $2) RETURNING *
   `;
   try {
-    const { rows } = await pool.query(sql, [Persona_Id_Ministros, Numero_Licencia]);
+    const { rows } = await pool.query(sql, [persona_id_ministros, numero_licencia]);
     res.json({ message: 'Ministro Ordenado insertado con éxito', data: rows[0] });
   } catch (err) {
     console.error('Error insertando Ministro Ordenado:', err);
@@ -33,11 +33,11 @@ export const createMinistroOrdenado = async (req, res) => {
 export const getMinistroById = async (req, res) => {
   const id = req.params.id;
   const sql = `
-    SELECT mo.*, p.Nombre_Persona, p.Telefono_Persona, p.Foto_Persona, 
-           p.Direccion_Persona, p.Fecha_Nacimiento, p.id_iglesia, p.Id_Distrito
+    SELECT mo.*, p.nombre_persona, p.telefono_persona, p.foto_persona, 
+           p.direccion_persona, p.fecha_nacimiento, p.id_iglesia, p.id_distrito
     FROM ministrosordenados mo
-    LEFT JOIN persona p ON mo.Persona_Id_Ministros = p.Id_Persona
-    WHERE mo.Id_Ministro = $1
+    LEFT JOIN persona p ON mo.persona_id_ministros = p.id_persona
+    WHERE mo.id_ministro = $1
   `;
   try {
     const { rows } = await pool.query(sql, [id]);
@@ -54,20 +54,20 @@ export const getMinistroById = async (req, res) => {
 // Obtener ministros ordenados
 export const getMinistrosOrdenados = async (req, res) => {
   const sql = `
-    SELECT p.Id_Persona as Id_Ministro, p.Nombre_Persona, 
-           MAX(r.Fecha_Reporte) as ultimoReporte, 
+    SELECT p.id_persona as id_ministro, p.nombre_persona, 
+           MAX(r.fecha_reporte) as ultimoreporte, 
            CASE 
-               WHEN MAX(r.Fecha_Reporte) IS NULL THEN 'Pendiente'
-               WHEN r.Estado_Reporte = 'Enviado' THEN 'Enviado'
-               WHEN r.Estado_Reporte = 'Incompleto' THEN 'Incompleto'
+               WHEN MAX(r.fecha_reporte) IS NULL THEN 'Pendiente'
+               WHEN r.estado_reporte = 'Enviado' THEN 'Enviado'
+               WHEN r.estado_reporte = 'Incompleto' THEN 'Incompleto'
                ELSE 'Pendiente'
-           END as estadoReporte
+           END as estado_reporte
     FROM persona p
-    JOIN cargo_persona cp ON p.Id_Persona = cp.Id_Persona
-    JOIN cargo c ON cp.Id_Cargo = c.Id_Cargo
-    LEFT JOIN reportesmensuales r ON p.Id_Persona = r.Persona_Id
-    WHERE c.Nombre_Cargo = 'Ministro Ordenado'
-    GROUP BY p.Id_Persona
+    JOIN cargo_persona cp ON p.id_persona = cp.id_persona
+    JOIN cargo c ON cp.id_cargo = c.id_cargo
+    LEFT JOIN reportesmensuales r ON p.id_persona = r.persona_id
+    WHERE c.nombre_cargo = 'Ministro Ordenado'
+    GROUP BY p.id_persona
   `;
   try {
     const { rows } = await pool.query(sql);
@@ -82,23 +82,23 @@ export const getMinistrosOrdenados = async (req, res) => {
 export const getAllMinistrosOrdenados = async (req, res) => {
   const sql = `
     SELECT 
-        mo.Id_Ministro, 
-        mo.Numero_Licencia, 
-        mo.Descripcion_Adicional, 
-        p.Id_Persona AS Persona_Id_Ministros, 
-        p.Nombre_Persona, 
-        p.Telefono_Persona, 
-        p.Foto_Persona, 
-        p.Direccion_Persona, 
-        p.Fecha_Nacimiento, 
+        mo.id_ministro, 
+        mo.numero_licencia, 
+        mo.descripcion_adicional, 
+        p.id_persona AS persona_id_ministros, 
+        p.nombre_persona, 
+        p.telefono_persona, 
+        p.foto_persona, 
+        p.direccion_persona, 
+        p.fecha_nacimiento, 
         p.id_iglesia,
-        m.Id_Ministerio, 
-        m.Nombre_Ministerio
+        m.id_ministerio, 
+        m.nombre_ministerio
     FROM ministrosordenados mo
-    JOIN persona p ON mo.Persona_Id_Ministros = p.Id_Persona
-    JOIN persona_ministerio pm ON p.Id_Persona = pm.Id_Persona
-    JOIN ministerios m ON pm.Id_Ministerio = m.Id_Ministerio
-    WHERE m.Nombre_Ministerio ILIKE '%Ordenado%'
+    JOIN persona p ON mo.persona_id_ministros = p.id_persona
+    JOIN persona_ministerio pm ON p.id_persona = pm.id_persona
+    JOIN ministerios m ON pm.id_ministerio = m.id_ministerio
+    WHERE m.nombre_ministerio ILIKE '%Ordenado%'
   `;
   try {
     const { rows } = await pool.query(sql);
@@ -118,33 +118,33 @@ export const createReporteMinistro = async (req, res) => {
   console.log('Datos recibidos:', req.body);
 
   try {
-    const sqlGetPersonaInfo = 'SELECT Id_Persona, Id_Distrito FROM persona WHERE Usuario_ID = $1';
+    const sqlGetPersonaInfo = 'SELECT id_persona, id_distrito FROM persona WHERE usuario_id = $1';
     const { rows: personaRows } = await pool.query(sqlGetPersonaInfo, [usuario_id]);
     if (personaRows.length === 0) {
-      return res.status(404).json({ error: 'No se encontró un Id_Persona para el usuario' });
+      return res.status(404).json({ error: 'No se encontró un id_persona para el usuario' });
     }
 
     const { id_persona: personaId, id_distrito: distritoId } = personaRows[0];
     const sqlReporte = `
-      INSERT INTO reportesmensuales (Mes, Ano, Ministerio_Id, Persona_Id, Distrito_Id) 
-      VALUES ($1, $2, $3, $4, $5) RETURNING Id_Reporte
+      INSERT INTO reportesmensuales (mes, ano, ministerio_id, persona_id, distrito_id) 
+      VALUES ($1, $2, $3, $4, $5) RETURNING id_reporte
     `;
     const { rows: reporteRows } = await pool.query(sqlReporte, [mes, ano, ministerio_id, personaId, distritoId]);
     const reporteId = reporteRows[0].id_reporte;
     console.log('Reporte insertado con ID:', reporteId);
 
     const sqlValores = `
-      INSERT INTO valorescamposreporte (Id_Reporte, Id_TipoCampo, Valor) 
+      INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) 
       VALUES ($1, $2, $3)
     `;
-    const valores = Object.entries(valoresCampos).map(([Id_TipoCampo, Valor]) => [reporteId, Id_TipoCampo, Valor]);
-    
+    const valores = Object.entries(valoresCampos).map(([id_tipocampo, valor]) => [reporteId, id_tipocampo, valor]);
+
     // Inserción en bloque usando un solo query
-    for (const [Id_Reporte, Id_TipoCampo, Valor] of valores) {
-      await pool.query(sqlValores, [Id_Reporte, Id_TipoCampo, Valor]);
+    for (const [id_reporte, id_tipocampo, valor] of valores) {
+      await pool.query(sqlValores, [id_reporte, id_tipocampo, valor]);
     }
 
-    res.json({ message: 'Reporte creado exitosamente', Id_Reporte: reporteId });
+    res.json({ message: 'Reporte creado exitosamente', id_reporte: reporteId });
   } catch (err) {
     console.error('Error al crear el reporte:', err);
     res.status(500).json({ error: 'Error al crear el reporte' });
@@ -164,20 +164,20 @@ export const updateReporteMinistro = async (req, res) => {
 
     const sqlUpdate = `
       UPDATE reportesmensuales 
-      SET Mes = $1, Ano = $2, Ministro_Id = $3 
-      WHERE Id_Reporte = $4 RETURNING *
+      SET mes = $1, ano = $2, ministro_id = $3 
+      WHERE id_reporte = $4 RETURNING *
     `;
     await pool.query(sqlUpdate, [mes, ano, ministroId, id]);
 
-    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE Id_Reporte = $1';
+    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE id_reporte = $1';
     await pool.query(sqlDeleteValores, [id]);
 
     const sqlInsertValores = `
-      INSERT INTO valorescamposreporte (Id_Reporte, Id_TipoCampo, Valor) 
+      INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) 
       VALUES ($1, $2, $3)
     `;
-    for (const [Id_TipoCampo, Valor] of Object.entries(valoresCampos)) {
-      await pool.query(sqlInsertValores, [id, Id_TipoCampo, Valor]);
+    for (const [id_tipocampo, valor] of Object.entries(valoresCampos)) {
+      await pool.query(sqlInsertValores, [id, id_tipocampo, valor]);
     }
 
     res.json({ id, mes, ano, ministroId, valoresCampos });
@@ -190,8 +190,8 @@ export const updateReporteMinistro = async (req, res) => {
 // Eliminar un reporte de ministro ordenado
 export const deleteReporteMinistro = async (req, res) => {
   const id = req.params.id;
-  const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE Id_Reporte = $1';
-  const sqlDeleteReporte = 'DELETE FROM reportesmensuales WHERE Id_Reporte = $1 RETURNING *';
+  const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE id_reporte = $1';
+  const sqlDeleteReporte = 'DELETE FROM reportesmensuales WHERE id_reporte = $1 RETURNING *';
 
   try {
     await pool.query(sqlDeleteValores, [id]);
@@ -211,16 +211,16 @@ export const getMinisterioOrdenadoByUserId = async (req, res) => {
   const usuarioId = req.params.id;
   const query = `
     SELECT 
-      pm.Id_Ministerio, 
-      m.Nombre_Ministerio, 
-      p.Id_Persona, 
-      p.Id_Distrito, 
-      mo.Numero_Licencia
+      pm.id_ministerio, 
+      m.nombre_ministerio, 
+      p.id_persona, 
+      p.id_distrito, 
+      mo.numero_licencia
     FROM persona_ministerio pm
-    JOIN persona p ON pm.Id_Persona = p.Id_Persona
-    JOIN ministerios m ON pm.Id_Ministerio = m.Id_Ministerio
-    LEFT JOIN ministrosordenados mo ON p.Id_Persona = mo.Persona_Id_Ministros
-    WHERE p.Usuario_ID = $1 AND m.Nombre_Ministerio = 'Ministro Ordenado'
+    JOIN persona p ON pm.id_persona = p.id_persona
+    JOIN ministerios m ON pm.id_ministerio = m.id_ministerio
+    LEFT JOIN ministrosordenados mo ON p.id_persona = mo.persona_id_ministros
+    WHERE p.usuario_id = $1 AND m.nombre_ministerio = 'Ministro Ordenado'
   `;
   try {
     const { rows } = await pool.query(query, [usuarioId]);
@@ -241,21 +241,21 @@ export const getReportesByMinistroOrdenado = async (req, res) => {
   const { ministerioId } = req.query;
   const sqlReportes = `
     SELECT 
-      r.Id_Reporte, r.Mes, r.Ano, r.Ministerio_Id, r.Persona_Id, r.Distrito_Id,
+      r.id_reporte, r.mes, r.ano, r.ministerio_id, r.persona_id, r.distrito_id,
       COALESCE(
         json_agg(
           json_build_object(
-            'Id_TipoCampo', vcr.Id_TipoCampo,
-            'Nombre_Campo', tc.Nombre_Campo,
-            'Valor', vcr.Valor
+            'id_tipocampo', vcr.id_tipocampo,
+            'nombre_campo', tc.nombre_campo,
+            'valor', vcr.valor
           )
-        ) FILTER (WHERE vcr.Id_TipoCampo IS NOT NULL), '[]'
-      ) AS valoresCampos
+        ) FILTER (WHERE vcr.id_tipocampo IS NOT NULL), '[]'
+      ) AS valores_campos
     FROM reportesmensuales r
-    LEFT JOIN valorescamposreporte vcr ON r.Id_Reporte = vcr.Id_Reporte
-    LEFT JOIN tiposcamposreporte tc ON vcr.Id_TipoCampo = tc.Id_TipoCampo
-    WHERE r.Persona_Id = $1 AND r.Ministerio_Id = $2
-    GROUP BY r.Id_Reporte, r.Mes, r.Ano, r.Ministerio_Id, r.Persona_Id, r.Distrito_Id
+    LEFT JOIN valorescamposreporte vcr ON r.id_reporte = vcr.id_reporte
+    LEFT JOIN tiposcamposreporte tc ON vcr.id_tipocampo = tc.id_tipocampo
+    WHERE r.persona_id = $1 AND r.ministerio_id = $2
+    GROUP BY r.id_reporte, r.mes, r.ano, r.ministerio_id, r.persona_id, r.distrito_id
   `;
   try {
     const { rows } = await pool.query(sqlReportes, [id, ministerioId]);

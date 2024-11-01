@@ -2,7 +2,7 @@ import pool from '../models/db.js';
 
 // Verificar si el subministerio existe
 const verifySubministerioExists = (subministerioId, callback) => {
-    const sql = 'SELECT COUNT(*) AS count FROM subministerios WHERE "Id_Subministerio" = $1';
+    const sql = 'SELECT COUNT(*) AS count FROM subministerios WHERE id_subministerio = $1';
     pool.query(sql, [subministerioId], (err, result) => {
         if (err) return callback(err, null);
         callback(null, result.rows[0].count > 0);
@@ -14,17 +14,17 @@ export const getAllReportes = (req, res) => {
     const { userRole, distritoId, userId } = req.query;
 
     let sql = `
-        SELECT reportesmensuales.*, ministerios."Nombre_Ministerio"
+        SELECT reportesmensuales.*, ministerios.nombre_ministerio
         FROM reportesmensuales
-        LEFT JOIN ministerios ON reportesmensuales."Ministerio_Id" = ministerios."Id_Ministerio"
+        LEFT JOIN ministerios ON reportesmensuales.ministerio_id = ministerios.id_ministerio
     `;
 
     if (userRole === "Administrador") {
         sql += ` WHERE 1 = 1`;
     } else if (userRole === "Supervisor de Distrito 1" || userRole === "Supervisor de Distrito 2") {
-        sql += ` WHERE reportesmensuales."Distrito_Id" = $1`;
+        sql += ` WHERE reportesmensuales.distrito_id = $1`;
     } else if (userRole === "Pastor") {
-        sql += ` WHERE reportesmensuales."Persona_Id" = $1`;
+        sql += ` WHERE reportesmensuales.persona_id = $1`;
     }
 
     let queryValues = [];
@@ -49,12 +49,12 @@ export const getReporteById = (req, res) => {
     const sql = `
         SELECT 
             r.*, 
-            d."Nombre_Distrito", 
-            p."Nombre_Persona"
+            d.nombre_distrito, 
+            p.nombre_persona
         FROM reportesmensuales r
-        LEFT JOIN distritos d ON r."Distrito_Id" = d."Id_Distrito"
-        LEFT JOIN persona p ON r."Persona_Id" = p."Id_Persona"
-        WHERE r."Id_Reporte" = $1;
+        LEFT JOIN distritos d ON r.distrito_id = d.id_distrito
+        LEFT JOIN persona p ON r.persona_id = p.id_persona
+        WHERE r.id_reporte = $1;
     `;
 
     pool.query(sql, [id], (err, result) => {
@@ -73,37 +73,37 @@ export const getReporteById = (req, res) => {
 
 // Crear un nuevo reporte con los valores de los campos
 export const createReporte = (req, res) => {
-    const { mes, ano, ministerio_id, valoresCampos, Usuario_ID, iglesia_id, distrito_id } = req.body;
+    const { mes, ano, ministerio_id, valoresCampos, usuario_id, iglesia_id, distrito_id } = req.body;
     console.log('Datos recibidos:', req.body);
 
-    const sqlGetPersona = 'SELECT "Id_Persona" FROM persona WHERE "Usuario_ID" = $1';
-    pool.query(sqlGetPersona, [Usuario_ID], (err, results) => {
+    const sqlGetPersona = 'SELECT id_persona FROM persona WHERE usuario_id = $1';
+    pool.query(sqlGetPersona, [usuario_id], (err, results) => {
         if (err) {
-            console.error('Error al obtener Id_Persona:', err);
-            return res.status(500).json({ error: 'Error al obtener Id_Persona' });
+            console.error('Error al obtener id_persona:', err);
+            return res.status(500).json({ error: 'Error al obtener id_persona' });
         }
 
         if (results.rows.length === 0) {
-            console.error('No se encontró un Id_Persona para el usuario:', Usuario_ID);
-            return res.status(404).json({ error: 'No se encontró un Id_Persona para el usuario' });
+            console.error('No se encontró un id_persona para el usuario:', usuario_id);
+            return res.status(404).json({ error: 'No se encontró un id_persona para el usuario' });
         }
 
-        const Persona_Id = results.rows[0].Id_Persona;
+        const persona_id = results.rows[0].id_persona;
 
         const sqlReporte = `
-          INSERT INTO reportesmensuales ("Mes", "Ano", "Ministerio_Id", "Persona_Id", "Distrito_Id") 
-          VALUES ($1, $2, $3, $4, $5) RETURNING "Id_Reporte";
+          INSERT INTO reportesmensuales (mes, ano, ministerio_id, persona_id, distrito_id) 
+          VALUES ($1, $2, $3, $4, $5) RETURNING id_reporte;
         `;
-        pool.query(sqlReporte, [mes, ano, ministerio_id, Persona_Id, distrito_id], (err, result) => {
+        pool.query(sqlReporte, [mes, ano, ministerio_id, persona_id, distrito_id], (err, result) => {
             if (err) {
                 console.error('Error al crear el reporte:', err);
                 return res.status(500).json({ error: 'Error al crear el reporte' });
             }
 
-            const reporteId = result.rows[0].Id_Reporte;
+            const reporteId = result.rows[0].id_reporte;
 
             const sqlValores = `
-              INSERT INTO valorescamposreporte ("Id_Reporte", "Id_TipoCampo", "Valor") VALUES ($1, $2, $3)
+              INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) VALUES ($1, $2, $3)
             `;
             const valores = Object.keys(valoresCampos).map(idTipoCampo => [
                 reporteId, idTipoCampo, valoresCampos[idTipoCampo]
@@ -123,21 +123,21 @@ export const createReporte = (req, res) => {
 // Actualizar un reporte mensual con validaciones
 export const updateReporte = (req, res) => {
     const id = req.params.id;
-    const { mes, ano, ministerioId, distritoId, personaId, valoresCampos } = req.body;
+    const { mes, ano, ministerio_id, distrito_id, persona_id, valoresCampos } = req.body;
 
     const sql = `
       UPDATE reportesmensuales 
-      SET "Mes" = $1, "Ano" = $2, "Ministerio_Id" = $3, "Distrito_Id" = $4, "Persona_Id" = $5 
-      WHERE "Id_Reporte" = $6
+      SET mes = $1, ano = $2, ministerio_id = $3, distrito_id = $4, persona_id = $5 
+      WHERE id_reporte = $6
     `;
 
-    pool.query(sql, [mes, ano, ministerioId, distritoId, personaId, id], (err) => {
+    pool.query(sql, [mes, ano, ministerio_id, distrito_id, persona_id, id], (err) => {
         if (err) {
             console.error('Error al actualizar el reporte:', err);
             return res.status(500).json({ error: 'Error al actualizar el reporte' });
         }
 
-        const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE "Id_Reporte" = $1';
+        const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE id_reporte = $1';
         pool.query(sqlDeleteValores, [id], (err) => {
             if (err) {
                 console.error('Error al eliminar valores antiguos:', err);
@@ -145,7 +145,7 @@ export const updateReporte = (req, res) => {
             }
 
             const sqlValores = `
-              INSERT INTO valorescamposreporte ("Id_Reporte", "Id_TipoCampo", "Valor") VALUES ($1, $2, $3)
+              INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) VALUES ($1, $2, $3)
             `;
             const valores = Object.keys(valoresCampos).map(idTipoCampo => [
                 id, idTipoCampo, valoresCampos[idTipoCampo]
@@ -167,11 +167,11 @@ export const updateReporte = (req, res) => {
 export const deleteReporte = (req, res) => {
     const id = req.params.id;
 
-    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE "Id_Reporte" = $1';
+    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE id_reporte = $1';
     pool.query(sqlDeleteValores, [id], (err) => {
         if (err) throw err;
 
-        const sql = 'DELETE FROM reportesmensuales WHERE "Id_Reporte" = $1';
+        const sql = 'DELETE FROM reportesmensuales WHERE id_reporte = $1';
         pool.query(sql, [id], (err) => {
             if (err) throw err;
             res.json({ message: 'Reporte eliminado con éxito' });
@@ -182,16 +182,16 @@ export const deleteReporte = (req, res) => {
 // Obtener estadísticas de reportes
 export const getEstadisticasReportes = (req, res) => {
     const sqlMensual = `
-      SELECT COUNT(*) AS "reporteMensual"
+      SELECT COUNT(*) AS reporte_mensual
       FROM reportesmensuales
-      WHERE "Mes" = EXTRACT(MONTH FROM CURRENT_DATE) AND "Ano" = EXTRACT(YEAR FROM CURRENT_DATE)
+      WHERE mes = EXTRACT(MONTH FROM CURRENT_DATE) AND ano = EXTRACT(YEAR FROM CURRENT_DATE)
     `;
 
     const sqlAnual = `
-      SELECT "Mes", "Ano", COUNT(*) AS "Total"
+      SELECT mes, ano, COUNT(*) AS total
       FROM reportesmensuales
-      GROUP BY "Mes", "Ano"
-      ORDER BY "Ano", "Mes";
+      GROUP BY mes, ano
+      ORDER BY ano, mes;
     `;
 
     pool.query(sqlMensual, (err, resultMensual) => {
@@ -207,7 +207,7 @@ export const getEstadisticasReportes = (req, res) => {
             }
 
             res.json({
-                reporteMensual: resultMensual.rows[0].reporteMensual,
+                reporteMensual: resultMensual.rows[0].reporte_mensual,
                 reportesAnuales: resultAnual.rows,
             });
         });

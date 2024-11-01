@@ -2,7 +2,7 @@ import pool from '../models/db.js';
 
 // Validar si la iglesia existe
 const verifyIglesiaExists = async (iglesiaId) => {
-  const sql = 'SELECT COUNT(*) FROM iglesias WHERE Id_Iglesia = $1';
+  const sql = 'SELECT COUNT(*) FROM iglesias WHERE id_iglesia = $1';
   try {
     const { rows } = await pool.query(sql, [iglesiaId]);
     return rows[0].count > 0;
@@ -13,21 +13,21 @@ const verifyIglesiaExists = async (iglesiaId) => {
 };
 
 export const getAllBienes = async (req, res) => {
-  const distritoId = req.query.distritoId || null;
-  const iglesiaId = req.query.iglesiaId || null;
-  const userRole = req.query.userRole || '';
+  const distritoId = req.query.distritoid || null;
+  const iglesiaId = req.query.iglesiaid || null;
+  const userRole = req.query.userrole || '';
 
   let sql = `
-    SELECT bienes.*, iglesias.Nombre_Iglesia 
+    SELECT bienes.*, iglesias.nombre_iglesia 
     FROM bienes
-    LEFT JOIN iglesias ON bienes.iglesia_id_bienes = iglesias.Id_Iglesia
+    LEFT JOIN iglesias ON bienes.iglesia_id_bienes = iglesias.id_iglesia
   `;
 
   // Filtro según el rol del usuario
   if (userRole.includes('Administrador')) {
     sql += ';';
   } else if (userRole.includes('Supervisor de Distrito')) {
-    sql += ` WHERE iglesias.Id_Distrito = $1;`;
+    sql += ` WHERE iglesias.id_distrito = $1;`;
   } else if (userRole.includes('Pastor')) {
     if (iglesiaId) {
       sql += ` WHERE bienes.iglesia_id_bienes = $1;`;
@@ -50,10 +50,10 @@ export const getAllBienes = async (req, res) => {
 
 export const getBienById = async (req, res) => {
   const sql = `
-    SELECT bienes.*, iglesias.Nombre_Iglesia 
+    SELECT bienes.*, iglesias.nombre_iglesia 
     FROM bienes 
-    LEFT JOIN iglesias ON bienes.iglesia_id_bienes = iglesias.Id_Iglesia 
-    WHERE bienes.Id_Bienes = $1
+    LEFT JOIN iglesias ON bienes.iglesia_id_bienes = iglesias.id_iglesia 
+    WHERE bienes.id_bienes = $1
   `;
   const id = req.params.id;
 
@@ -67,14 +67,14 @@ export const getBienById = async (req, res) => {
 };
 
 export const createBien = async (req, res) => {
-  const { Nombre_Bienes, Tipo_Bienes, Ubicacion_Bienes, Fecha_Adquisicion, Valor_Quetzales, Descripcion, Estado_Bienes, iglesia_id_bienes } = req.body;
+  const { nombre_bienes, tipo_bienes, ubicacion_bienes, fecha_adquisicion, valor_quetzales, descripcion, estado_bienes, iglesia_id_bienes } = req.body;
 
-  if (Valor_Quetzales <= 0) {
+  if (valor_quetzales <= 0) {
     return res.status(400).json({ error: 'El valor en Quetzales debe ser un número positivo.' });
   }
 
   const fechaActual = new Date();
-  if (new Date(Fecha_Adquisicion) > fechaActual) {
+  if (new Date(fecha_adquisicion) > fechaActual) {
     return res.status(400).json({ error: 'La fecha de adquisición no puede ser en el futuro.' });
   }
 
@@ -85,10 +85,10 @@ export const createBien = async (req, res) => {
     }
 
     const sql = `
-      INSERT INTO bienes (Nombre_Bienes, Tipo_Bienes, Ubicacion_Bienes, Fecha_Adquisicion, Valor_Quetzales, Descripcion, Estado_Bienes, iglesia_id_bienes)
+      INSERT INTO bienes (nombre_bienes, tipo_bienes, ubicacion_bienes, fecha_adquisicion, valor_quetzales, descripcion, estado_bienes, iglesia_id_bienes)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
     `;
-    const values = [Nombre_Bienes, Tipo_Bienes, Ubicacion_Bienes, Fecha_Adquisicion, Valor_Quetzales, Descripcion, Estado_Bienes, iglesia_id_bienes];
+    const values = [nombre_bienes, tipo_bienes, ubicacion_bienes, fecha_adquisicion, valor_quetzales, descripcion, estado_bienes, iglesia_id_bienes];
     const { rows } = await pool.query(sql, values);
     res.json(rows[0]);
   } catch (err) {
@@ -99,14 +99,14 @@ export const createBien = async (req, res) => {
 
 export const updateBien = async (req, res) => {
   const id = req.params.id;
-  const { Nombre_Bienes, Tipo_Bienes, Ubicacion_Bienes, Fecha_Adquisicion, Valor_Quetzales, Descripcion, Estado_Bienes, iglesia_id_bienes } = req.body;
+  const { nombre_bienes, tipo_bienes, ubicacion_bienes, fecha_adquisicion, valor_quetzales, descripcion, estado_bienes, iglesia_id_bienes } = req.body;
 
-  if (Valor_Quetzales <= 0) {
+  if (valor_quetzales <= 0) {
     return res.status(400).json({ error: 'El valor en Quetzales debe ser un número positivo.' });
   }
 
   const fechaActual = new Date();
-  if (new Date(Fecha_Adquisicion) > fechaActual) {
+  if (new Date(fecha_adquisicion) > fechaActual) {
     return res.status(400).json({ error: 'La fecha de adquisición no puede ser en el futuro.' });
   }
 
@@ -118,11 +118,11 @@ export const updateBien = async (req, res) => {
 
     const sql = `
       UPDATE bienes 
-      SET Nombre_Bienes = $1, Tipo_Bienes = $2, Ubicacion_Bienes = $3, Fecha_Adquisicion = $4, 
-          Valor_Quetzales = $5, Descripcion = $6, Estado_Bienes = $7, iglesia_id_bienes = $8 
-      WHERE Id_Bienes = $9 RETURNING *
+      SET nombre_bienes = $1, tipo_bienes = $2, ubicacion_bienes = $3, fecha_adquisicion = $4, 
+          valor_quetzales = $5, descripcion = $6, estado_bienes = $7, iglesia_id_bienes = $8 
+      WHERE id_bienes = $9 RETURNING *
     `;
-    const values = [Nombre_Bienes, Tipo_Bienes, Ubicacion_Bienes, Fecha_Adquisicion, Valor_Quetzales, Descripcion, Estado_Bienes, iglesia_id_bienes, id];
+    const values = [nombre_bienes, tipo_bienes, ubicacion_bienes, fecha_adquisicion, valor_quetzales, descripcion, estado_bienes, iglesia_id_bienes, id];
     const { rows } = await pool.query(sql, values);
     res.json(rows[0]);
   } catch (err) {
@@ -133,7 +133,7 @@ export const updateBien = async (req, res) => {
 
 export const deleteBien = async (req, res) => {
   const id = req.params.id;
-  const sql = 'DELETE FROM bienes WHERE Id_Bienes = $1 RETURNING *';
+  const sql = 'DELETE FROM bienes WHERE id_bienes = $1 RETURNING *';
   try {
     const { rows } = await pool.query(sql, [id]);
     if (rows.length === 0) {
@@ -149,10 +149,10 @@ export const deleteBien = async (req, res) => {
 export const searchBienes = async (req, res) => {
   const search = req.query.search || '';
   const sql = `
-    SELECT bienes.*, iglesias.Nombre_Iglesia 
+    SELECT bienes.*, iglesias.nombre_iglesia 
     FROM bienes 
-    LEFT JOIN iglesias ON bienes.iglesia_id_bienes = iglesias.Id_Iglesia 
-    WHERE bienes.Nombre_Bienes ILIKE $1 OR bienes.Tipo_Bienes ILIKE $2 OR iglesias.Nombre_Iglesia ILIKE $3
+    LEFT JOIN iglesias ON bienes.iglesia_id_bienes = iglesias.id_iglesia 
+    WHERE bienes.nombre_bienes ILIKE $1 OR bienes.tipo_bienes ILIKE $2 OR iglesias.nombre_iglesia ILIKE $3
   `;
   const values = [`%${search}%`, `%${search}%`, `%${search}%`];
 
