@@ -37,9 +37,10 @@ app.use('/fotosPerfil', express.static('fotosPerfil')); //Se configura la carpet
 
 app.use('/', routes); //Todas las rutas comenzarán directamente desde la raíz ('/')
 
-// Iniciar el servidor
-app.listen(port, () => {
-  console.log(`App listening on port ${port}`);
-});
-
+// Iniciar el servidor en desarrollo o producción
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`App listening on port ${port}`);
+  });
+}
 export default app;
