@@ -1,185 +1,215 @@
 import pool from '../models/db.js';
 
 // Verificar si el subministerio existe
-const verifySubministerioExists = async (subministerioId) => {
-  const sql = 'SELECT COUNT(*) AS count FROM subministerios WHERE Id_Subministerio = $1';
-  const { rows } = await pool.query(sql, [subministerioId]);
-  return rows[0].count > 0;
+const verifySubministerioExists = (subministerioId, callback) => {
+    const sql = 'SELECT COUNT(*) AS count FROM subministerios WHERE "Id_Subministerio" = $1';
+    pool.query(sql, [subministerioId], (err, result) => {
+        if (err) return callback(err, null);
+        callback(null, result.rows[0].count > 0);
+    });
 };
 
 // Obtener todos los reportes (filtrados según el rol)
-export const getAllReportes = async (req, res) => {
-  const { userRole, distritoId, userId } = req.query;
-  let sql = `
-    SELECT reportesmensuales.*, ministerios.Nombre_Ministerio
-    FROM reportesmensuales
-    LEFT JOIN ministerios ON reportesmensuales.Ministerio_Id = ministerios.Id_Ministerio
-  `;
+export const getAllReportes = (req, res) => {
+    const { userRole, distritoId, userId } = req.query;
 
-  if (userRole === "Administrador") {
-    sql += ` WHERE 1 = 1`;
-  } else if (userRole === "Supervisor de Distrito 1" || userRole === "Supervisor de Distrito 2") {
-    sql += ` WHERE reportesmensuales.Distrito_Id = $1`;
-  } else if (userRole === "Pastor") {
-    sql += ` WHERE reportesmensuales.Persona_Id = $1`;
-  }
+    let sql = `
+        SELECT reportesmensuales.*, ministerios."Nombre_Ministerio"
+        FROM reportesmensuales
+        LEFT JOIN ministerios ON reportesmensuales."Ministerio_Id" = ministerios."Id_Ministerio"
+    `;
 
-  const queryValues = (userRole === "Supervisor de Distrito 1" || userRole === "Supervisor de Distrito 2") ? [distritoId] : [userId];
+    if (userRole === "Administrador") {
+        sql += ` WHERE 1 = 1`;
+    } else if (userRole === "Supervisor de Distrito 1" || userRole === "Supervisor de Distrito 2") {
+        sql += ` WHERE reportesmensuales."Distrito_Id" = $1`;
+    } else if (userRole === "Pastor") {
+        sql += ` WHERE reportesmensuales."Persona_Id" = $1`;
+    }
 
-  try {
-    const { rows } = await pool.query(sql, queryValues);
-    res.json(rows);
-  } catch (err) {
-    console.error('Error al obtener los reportes:', err);
-    res.status(500).json({ error: 'Error al obtener los reportes' });
-  }
+    let queryValues = [];
+    if (userRole === "Supervisor de Distrito 1" || userRole === "Supervisor de Distrito 2") {
+        queryValues = [distritoId];
+    } else if (userRole === "Pastor") {
+        queryValues = [userId];
+    }
+
+    pool.query(sql, queryValues, (err, results) => {
+        if (err) {
+            console.error('Error al obtener los reportes:', err);
+            return res.status(500).json({ error: 'Error al obtener los reportes' });
+        }
+        res.json(results.rows);
+    });
 };
 
 // Obtener un reporte por ID
-export const getReporteById = async (req, res) => {
-  const { id } = req.params;
-  const sql = `
-    SELECT 
-      r.*, 
-      d.Nombre_Distrito, 
-      p.Nombre_Persona 
-    FROM reportesmensuales r
-    LEFT JOIN distritos d ON r.Distrito_Id = d.Id_Distrito
-    LEFT JOIN persona p ON r.Persona_Id = p.Id_Persona
-    WHERE r.Id_Reporte = $1
-  `;
+export const getReporteById = (req, res) => {
+    const { id } = req.params;
+    const sql = `
+        SELECT 
+            r.*, 
+            d."Nombre_Distrito", 
+            p."Nombre_Persona"
+        FROM reportesmensuales r
+        LEFT JOIN distritos d ON r."Distrito_Id" = d."Id_Distrito"
+        LEFT JOIN persona p ON r."Persona_Id" = p."Id_Persona"
+        WHERE r."Id_Reporte" = $1;
+    `;
 
-  try {
-    const { rows } = await pool.query(sql, [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
-    }
-    res.json(rows[0]);
-  } catch (err) {
-    console.error('Error al obtener el reporte:', err);
-    res.status(500).json({ error: 'Error al obtener el reporte' });
-  }
+    pool.query(sql, [id], (err, result) => {
+        if (err) {
+            console.error('Error al obtener el reporte:', err);
+            return res.status(500).json({ error: 'Error al obtener el reporte' });
+        }
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Reporte no encontrado' });
+        }
+
+        res.json(result.rows[0]);
+    });
 };
 
 // Crear un nuevo reporte con los valores de los campos
-export const createReporte = async (req, res) => {
-  const { mes, ano, ministerio_id, valoresCampos, Usuario_ID, iglesia_id, distrito_id } = req.body;
+export const createReporte = (req, res) => {
+    const { mes, ano, ministerio_id, valoresCampos, Usuario_ID, iglesia_id, distrito_id } = req.body;
+    console.log('Datos recibidos:', req.body);
 
-  try {
-    const sqlGetPersona = 'SELECT Id_Persona FROM persona WHERE Usuario_ID = $1';
-    const personaResult = await pool.query(sqlGetPersona, [Usuario_ID]);
+    const sqlGetPersona = 'SELECT "Id_Persona" FROM persona WHERE "Usuario_ID" = $1';
+    pool.query(sqlGetPersona, [Usuario_ID], (err, results) => {
+        if (err) {
+            console.error('Error al obtener Id_Persona:', err);
+            return res.status(500).json({ error: 'Error al obtener Id_Persona' });
+        }
 
-    if (personaResult.rows.length === 0) {
-      return res.status(404).json({ error: 'No se encontró un Id_Persona para el usuario' });
-    }
+        if (results.rows.length === 0) {
+            console.error('No se encontró un Id_Persona para el usuario:', Usuario_ID);
+            return res.status(404).json({ error: 'No se encontró un Id_Persona para el usuario' });
+        }
 
-    const Persona_Id = personaResult.rows[0].id_persona;
+        const Persona_Id = results.rows[0].Id_Persona;
 
-    const sqlReporte = `
-      INSERT INTO reportesmensuales (Mes, Ano, Ministerio_Id, Persona_Id, Distrito_Id) 
-      VALUES ($1, $2, $3, $4, $5) RETURNING Id_Reporte
-    `;
-    const reporteResult = await pool.query(sqlReporte, [mes, ano, ministerio_id, Persona_Id, distrito_id]);
-    const reporteId = reporteResult.rows[0].id_reporte;
+        const sqlReporte = `
+          INSERT INTO reportesmensuales ("Mes", "Ano", "Ministerio_Id", "Persona_Id", "Distrito_Id") 
+          VALUES ($1, $2, $3, $4, $5) RETURNING "Id_Reporte";
+        `;
+        pool.query(sqlReporte, [mes, ano, ministerio_id, Persona_Id, distrito_id], (err, result) => {
+            if (err) {
+                console.error('Error al crear el reporte:', err);
+                return res.status(500).json({ error: 'Error al crear el reporte' });
+            }
 
-    const sqlValores = `
-      INSERT INTO valorescamposreporte (Id_Reporte, Id_TipoCampo, Valor) 
-      VALUES ($1, $2, $3)
-    `;
-    const valores = Object.keys(valoresCampos).map(idTipoCampo => [
-      reporteId, idTipoCampo, valoresCampos[idTipoCampo]
-    ]);
+            const reporteId = result.rows[0].Id_Reporte;
 
-    for (const [idReporte, idTipoCampo, valor] of valores) {
-      await pool.query(sqlValores, [idReporte, idTipoCampo, valor]);
-    }
+            const sqlValores = `
+              INSERT INTO valorescamposreporte ("Id_Reporte", "Id_TipoCampo", "Valor") VALUES ($1, $2, $3)
+            `;
+            const valores = Object.keys(valoresCampos).map(idTipoCampo => [
+                reporteId, idTipoCampo, valoresCampos[idTipoCampo]
+            ]);
 
-    res.json({ message: 'Reporte creado exitosamente' });
-  } catch (err) {
-    console.error('Error al crear el reporte:', err);
-    res.status(500).json({ error: 'Error al crear el reporte' });
-  }
+            pool.query(sqlValores, [valores], (err) => {
+                if (err) {
+                    console.error('Error al insertar los valores del reporte:', err);
+                    return res.status(500).json({ error: 'Error al insertar los valores del reporte' });
+                }
+                res.json({ message: 'Reporte creado exitosamente' });
+            });
+        });
+    });
 };
 
 // Actualizar un reporte mensual con validaciones
-export const updateReporte = async (req, res) => {
-  const id = req.params.id;
-  const { mes, ano, ministerioId, distritoId, personaId, valoresCampos } = req.body;
+export const updateReporte = (req, res) => {
+    const id = req.params.id;
+    const { mes, ano, ministerioId, distritoId, personaId, valoresCampos } = req.body;
 
-  try {
     const sql = `
       UPDATE reportesmensuales 
-      SET Mes = $1, Ano = $2, Ministerio_Id = $3, Distrito_Id = $4, Persona_Id = $5 
-      WHERE Id_Reporte = $6
+      SET "Mes" = $1, "Ano" = $2, "Ministerio_Id" = $3, "Distrito_Id" = $4, "Persona_Id" = $5 
+      WHERE "Id_Reporte" = $6
     `;
-    await pool.query(sql, [mes, ano, ministerioId, distritoId, personaId, id]);
 
-    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE Id_Reporte = $1';
-    await pool.query(sqlDeleteValores, [id]);
+    pool.query(sql, [mes, ano, ministerioId, distritoId, personaId, id], (err) => {
+        if (err) {
+            console.error('Error al actualizar el reporte:', err);
+            return res.status(500).json({ error: 'Error al actualizar el reporte' });
+        }
 
-    const sqlValores = `
-      INSERT INTO valorescamposreporte (Id_Reporte, Id_TipoCampo, Valor) 
-      VALUES ($1, $2, $3)
-    `;
-    const valores = Object.keys(valoresCampos).map(idTipoCampo => [
-      id, idTipoCampo, valoresCampos[idTipoCampo]
-    ]);
+        const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE "Id_Reporte" = $1';
+        pool.query(sqlDeleteValores, [id], (err) => {
+            if (err) {
+                console.error('Error al eliminar valores antiguos:', err);
+                return res.status(500).json({ error: 'Error al eliminar valores antiguos' });
+            }
 
-    for (const [idReporte, idTipoCampo, valor] of valores) {
-      await pool.query(sqlValores, [idReporte, idTipoCampo, valor]);
-    }
+            const sqlValores = `
+              INSERT INTO valorescamposreporte ("Id_Reporte", "Id_TipoCampo", "Valor") VALUES ($1, $2, $3)
+            `;
+            const valores = Object.keys(valoresCampos).map(idTipoCampo => [
+                id, idTipoCampo, valoresCampos[idTipoCampo]
+            ]);
 
-    res.json({ message: 'Reporte actualizado exitosamente' });
-  } catch (err) {
-    console.error('Error al actualizar el reporte:', err);
-    res.status(500).json({ error: 'Error al actualizar el reporte' });
-  }
+            pool.query(sqlValores, [valores], (err) => {
+                if (err) {
+                    console.error('Error al insertar nuevos valores:', err);
+                    return res.status(500).json({ error: 'Error al insertar nuevos valores' });
+                }
+
+                res.json({ message: 'Reporte actualizado exitosamente' });
+            });
+        });
+    });
 };
 
 // Eliminar un reporte mensual
-export const deleteReporte = async (req, res) => {
-  const id = req.params.id;
+export const deleteReporte = (req, res) => {
+    const id = req.params.id;
 
-  try {
-    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE Id_Reporte = $1';
-    await pool.query(sqlDeleteValores, [id]);
+    const sqlDeleteValores = 'DELETE FROM valorescamposreporte WHERE "Id_Reporte" = $1';
+    pool.query(sqlDeleteValores, [id], (err) => {
+        if (err) throw err;
 
-    const sql = 'DELETE FROM reportesmensuales WHERE Id_Reporte = $1';
-    await pool.query(sql, [id]);
-
-    res.json({ message: 'Reporte eliminado con éxito' });
-  } catch (err) {
-    console.error('Error al eliminar el reporte:', err);
-    res.status(500).json({ error: 'Error al eliminar el reporte' });
-  }
+        const sql = 'DELETE FROM reportesmensuales WHERE "Id_Reporte" = $1';
+        pool.query(sql, [id], (err) => {
+            if (err) throw err;
+            res.json({ message: 'Reporte eliminado con éxito' });
+        });
+    });
 };
 
 // Obtener estadísticas de reportes
-export const getEstadisticasReportes = async (req, res) => {
-  const sqlMensual = `
-    SELECT COUNT(*) AS reporteMensual
-    FROM reportesmensuales
-    WHERE EXTRACT(MONTH FROM CURRENT_DATE) = EXTRACT(MONTH FROM CURRENT_DATE) 
-      AND EXTRACT(YEAR FROM CURRENT_DATE) = EXTRACT(YEAR FROM CURRENT_DATE)
-  `;
-  
-  const sqlAnual = `
-    SELECT Mes, Ano, COUNT(*) AS Total
-    FROM reportesmensuales
-    GROUP BY Mes, Ano
-    ORDER BY Ano, Mes
-  `;
+export const getEstadisticasReportes = (req, res) => {
+    const sqlMensual = `
+      SELECT COUNT(*) AS "reporteMensual"
+      FROM reportesmensuales
+      WHERE "Mes" = EXTRACT(MONTH FROM CURRENT_DATE) AND "Ano" = EXTRACT(YEAR FROM CURRENT_DATE)
+    `;
 
-  try {
-    const resultMensual = await pool.query(sqlMensual);
-    const resultAnual = await pool.query(sqlAnual);
+    const sqlAnual = `
+      SELECT "Mes", "Ano", COUNT(*) AS "Total"
+      FROM reportesmensuales
+      GROUP BY "Mes", "Ano"
+      ORDER BY "Ano", "Mes";
+    `;
 
-    res.json({
-      reporteMensual: resultMensual.rows[0].reporteMensual,
-      reportesAnuales: resultAnual.rows
+    pool.query(sqlMensual, (err, resultMensual) => {
+        if (err) {
+            console.error('Error al obtener reportes mensuales:', err);
+            return res.status(500).json({ error: 'Error al obtener reportes mensuales.' });
+        }
+
+        pool.query(sqlAnual, (err, resultAnual) => {
+            if (err) {
+                console.error('Error al obtener reportes anuales:', err);
+                return res.status(500).json({ error: 'Error al obtener reportes anuales.' });
+            }
+
+            res.json({
+                reporteMensual: resultMensual.rows[0].reporteMensual,
+                reportesAnuales: resultAnual.rows,
+            });
+        });
     });
-  } catch (err) {
-    console.error('Error al obtener estadísticas de reportes:', err);
-    res.status(500).json({ error: 'Error al obtener estadísticas de reportes.' });
-  }
 };

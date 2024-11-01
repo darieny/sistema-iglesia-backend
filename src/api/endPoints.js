@@ -2,7 +2,7 @@ import { Router } from 'express';
 const router = Router();
 import { ping } from '../controllers/pingController.js';
 import {login} from '../controllers/loginController.js';
-import { getAllPersonas, getPersonaById, createPersona, updatePersona, deletePersona, upload, getPersonasByIglesiaId } from '../controllers/personasController.js';
+import { getAllPersonas, getPersonaById, createPersona, updatePersona, deletePersona, getPersonasByIglesiaId } from '../controllers/personasController.js';
 import { getAllIglesias, getIglesiaById, createIglesia, updateIglesia, deleteIglesia, uploadIglesia } from '../controllers/iglesiasController.js';
 import { getAllBienes, getBienById, createBien, updateBien, deleteBien, searchBienes } from '../controllers/bienesController.js';
 import { createMinisterio, getAllMinisterios, getMinisterioById, getMinistroOrdenadoId, searchMinisterios, getMinisterios, getReportesByMinisterio } from '../controllers/ministeriosController.js';
@@ -24,8 +24,8 @@ router.post('/login', login);
 router.get('/personas', getAllPersonas);
 router.get('/personas/:id', getPersonaById);
 router.get('/personasPorIglesia', getPersonasByIglesiaId);
-router.post('/personas', upload.single('foto'), createPersona);
-router.put('/personas/:id', upload.single('foto'), updatePersona);
+router.post('/personas', createPersona);
+router.put('/personas/:id', updatePersona);
 router.delete('/personas/:id', deletePersona);
 
 //Rutas para Iglesias
