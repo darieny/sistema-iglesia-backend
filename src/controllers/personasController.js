@@ -21,7 +21,7 @@ export const getAllPersonas = (req, res) => {
         LEFT JOIN iglesias ON persona.id_iglesia = iglesias.id_iglesia
         LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
         LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo
-        GROUP BY persona.id_persona
+        GROUP BY persona.id_persona, iglesias.nombre_iglesia;
     `;
     pool.query(sql, (err, result) => {
         if (err) {

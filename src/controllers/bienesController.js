@@ -13,9 +13,9 @@ const verifyIglesiaExists = async (iglesiaId) => {
 };
 
 export const getAllBienes = async (req, res) => {
-  const distritoId = req.query.distritoid || null;
-  const iglesiaId = req.query.iglesiaid || null;
-  const userRole = req.query.userrole || '';
+  const distritoId = req.query.distritoId || null;
+  const iglesiaId = req.query.iglesiaId || null;
+  const userRole = req.query.userRole || '';
 
   let sql = `
     SELECT bienes.*, iglesias.nombre_iglesia 
