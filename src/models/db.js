@@ -1,37 +1,41 @@
-import { createConnection } from 'mysql2';
+import pkg from 'pg';
+const { Pool } = pkg;
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-let connection;
+let pool;
 
 function handleDisconnect() {
-  connection = createConnection({
+  pool = new Pool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
-    port: process.env.DB_PORT
+    port: process.env.DB_PORT,
+    ssl: { rejectUnauthorized: false }
   });
-// Intentar conectarse
-  connection.connect(err => {
+
+  pool.connect((err, _client, release) => {
     if (err) {
       console.error('Error al intentar conectarse a la base de datos:', err);
-      setTimeout(handleDisconnect, 2000);  // Intentar reconectar después de 2 segundos
+      setTimeout(handleDisconnect, 2000);
     } else {
       console.log('Conexión a la base de datos establecida');
+      release();
     }
   });
-// Manejar desconexiones inesperadas
-  connection.on('error', err => {
+
+  pool.on('error', (err) => {
     console.error('Error en la conexión a la base de datos:', err);
-    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-      handleDisconnect();  // Reconectar automáticamente en caso de pérdida de conexión
+    if (err.code === '57P01') {
+      handleDisconnect();
     } else {
       throw err;
     }
   });
 }
-handleDisconnect();  // Iniciar la conexión
 
-export default connection;
+handleDisconnect();
+
+export default pool;
