@@ -46,7 +46,7 @@ export const getPersonaById = (req, res) => {
         LEFT JOIN cargo_persona cp ON persona.id_persona = cp.id_persona
         LEFT JOIN cargo ON cp.id_cargo = cargo.id_cargo
         WHERE persona.id_persona = $1
-        GROUP BY persona.id_persona;
+        GROUP BY persona.id_persona, iglesias.nombre_iglesia, distritos.nombre_distrito;
     `;
 
     pool.query(sql, [id], (err, result) => {
@@ -200,8 +200,17 @@ export const updatePersona = (req, res) => {
     if (id_iglesia) updatedPersona.id_iglesia = id_iglesia;
     if (id_distrito) updatedPersona.id_distrito = id_distrito;
 
-    const sqlUpdatePersona = 'UPDATE persona SET $1 WHERE id_persona = $2';
-    pool.query(sqlUpdatePersona, [updatedPersona, id], (err) => {
+    // Construir dinámicamente la parte de "SET" de la consulta
+    const setClause = Object.keys(updatedPersona)
+        .map((key, index) => `${key} = $${index + 1}`)
+        .join(', ');
+
+    const values = Object.values(updatedPersona);
+    values.push(id); // Agregar el id como el último valor
+
+    const sqlUpdatePersona = `UPDATE persona SET ${setClause} WHERE id_persona = $${values.length}`;
+
+    pool.query(sqlUpdatePersona, values, (err) => {
         if (err) {
             console.error('Error actualizando la persona:', err);
             return res.status(500).json({ error: 'Error actualizando la persona.' });
@@ -209,6 +218,73 @@ export const updatePersona = (req, res) => {
         updateCargosAndMinisterios(id, cargos, ministerios, res, updatedPersona);
     });
 };
+
+const updateCargosAndMinisterios = (personaId, cargos, ministerios, res, updatedPersona) => {
+    // Eliminar cargos existentes
+    const sqlDeleteCargos = 'DELETE FROM cargo_persona WHERE id_persona = $1';
+    pool.query(sqlDeleteCargos, [personaId], (err) => {
+        if (err) {
+            console.error('Error eliminando cargos existentes:', err);
+            return res.status(500).json({ error: 'Error eliminando los cargos existentes.' });
+        }
+
+        if (cargos.length > 0) {
+            getCargosIds(cargos, (err, cargoIds) => {
+                if (err) {
+                    console.error('Error obteniendo IDs de cargos:', err);
+                    return res.status(500).json({ error: 'Error obteniendo IDs de cargos.' });
+                }
+
+                const sqlInsertCargos = 'INSERT INTO cargo_persona (id_persona, id_cargo) VALUES ($1, $2)';
+                const queries = cargoIds.map((cargoId) => {
+                    return pool.query(sqlInsertCargos, [personaId, cargoId]);
+                });
+
+                Promise.all(queries)
+                    .then(() => {
+                        updateMinisterios(personaId, ministerios, res, updatedPersona);
+                    })
+                    .catch((err) => {
+                        console.error('Error asignando cargos:', err);
+                        res.status(500).json({ error: 'Error asignando los cargos.' });
+                    });
+            });
+        } else {
+            updateMinisterios(personaId, ministerios, res, updatedPersona);
+        }
+    });
+};
+
+// Actualizar ministerios de la persona
+const updateMinisterios = (personaId, ministerios, res, updatedPersona) => {
+    // Eliminar ministerios existentes
+    const sqlDeleteMinisterios = 'DELETE FROM persona_ministerio WHERE id_persona = $1';
+    pool.query(sqlDeleteMinisterios, [personaId], (err) => {
+        if (err) {
+            console.error('Error eliminando ministerios existentes:', err);
+            return res.status(500).json({ error: 'Error eliminando los ministerios existentes.' });
+        }
+
+        if (ministerios.length > 0) {
+            const sqlInsertMinisterios = 'INSERT INTO persona_ministerio (id_persona, id_ministerio) VALUES ($1, $2)';
+            const queries = ministerios.map((ministerioId) => {
+                return pool.query(sqlInsertMinisterios, [personaId, ministerioId]);
+            });
+
+            Promise.all(queries)
+                .then(() => {
+                    res.json({ id: personaId, ...updatedPersona });
+                })
+                .catch((err) => {
+                    console.error('Error asignando ministerios:', err);
+                    res.status(500).json({ error: 'Error asignando ministerios.' });
+                });
+        } else {
+            res.json({ id: personaId, ...updatedPersona });
+        }
+    });
+};
+
 
 // Eliminar una persona
 export const deletePersona = (req, res) => {
