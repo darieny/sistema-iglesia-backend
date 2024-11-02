@@ -289,15 +289,36 @@ const updateMinisterios = (personaId, ministerios, res, updatedPersona) => {
 // Eliminar una persona
 export const deletePersona = (req, res) => {
     const id = req.params.id;
-    const sqlDeletePersona = 'DELETE FROM persona WHERE id_persona = $1';
-    pool.query(sqlDeletePersona, [id], (err, result) => {
+
+    // Primero, eliminar todas las asociaciones en cargo_persona
+    const deleteCargosSql = 'DELETE FROM cargo_persona WHERE id_persona = $1';
+    pool.query(deleteCargosSql, [id], (err) => {
         if (err) {
-            console.error('Error eliminando persona:', err);
-            return res.status(500).json({ error: 'Error eliminando la persona.' });
+            console.error('Error eliminando cargos asociados:', err);
+            return res.status(500).json({ error: 'Error eliminando cargos asociados.' });
         }
-        res.json({ message: 'Persona eliminada con éxito' });
+
+        // Luego, eliminar todas las asociaciones en persona_ministerio
+        const deleteMinisteriosSql = 'DELETE FROM persona_ministerio WHERE id_persona = $1';
+        pool.query(deleteMinisteriosSql, [id], (err) => {
+            if (err) {
+                console.error('Error eliminando ministerios asociados:', err);
+                return res.status(500).json({ error: 'Error eliminando ministerios asociados.' });
+            }
+
+            // Finalmente, eliminar la persona de la tabla persona
+            const deletePersonaSql = 'DELETE FROM persona WHERE id_persona = $1';
+            pool.query(deletePersonaSql, [id], (err) => {
+                if (err) {
+                    console.error('Error eliminando persona:', err);
+                    return res.status(500).json({ error: 'Error eliminando la persona.' });
+                }
+                res.json({ message: 'Persona eliminada con éxito' });
+            });
+        });
     });
 };
+
 
 // Buscar personas
 export const searchPersonas = (req, res) => {

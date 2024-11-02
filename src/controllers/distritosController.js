@@ -140,47 +140,47 @@ export const getReportesByDistrito = async (req, res) => {
 export const getDistritoData = async (req, res) => {
   const sql = `
     SELECT 
-        d.id_distrito, 
-        d.nombre_distrito,
-        (SELECT COUNT(*) FROM iglesias WHERE iglesias.id_distrito = d.id_distrito) AS num_iglesias,
+    d.id_distrito, 
+    d.nombre_distrito,
+    (SELECT COUNT(*) FROM iglesias WHERE iglesias.id_distrito = d.id_distrito) AS num_iglesias,
+    (SELECT COUNT(DISTINCT p.id_persona) 
+        FROM persona p 
+        JOIN cargo_persona cp ON p.id_persona = cp.id_persona 
+        JOIN cargo c ON cp.id_cargo = c.id_cargo 
+        WHERE c.nombre_cargo = 'Pastor' AND p.id_distrito = d.id_distrito) AS num_pastores,
+    (SELECT COUNT(*) FROM ministerios WHERE ministerios.id_distrito = d.id_distrito) AS num_ministerios,
+    (SELECT COUNT(DISTINCT p.id_persona) 
+        FROM persona p 
+        JOIN ministrosordenados mo ON p.id_persona = mo.persona_id_ministros 
+        WHERE p.id_distrito = d.id_distrito) AS num_ministros_ordenados
+FROM distritos d
+WHERE d.nombre_distrito != 'Área General'
+
+UNION ALL
+
+SELECT 
+    3 AS id_distrito, 
+    'Área General' AS nombre_distrito,
+    SUM(iglesias_count) AS num_iglesias,
+    SUM(pastores_count) AS num_pastores,
+    SUM(ministerios_count) AS num_ministerios,
+    SUM(ministros_count) AS num_ministros_ordenados
+FROM (
+    SELECT 
+        (SELECT COUNT(*) FROM iglesias WHERE iglesias.id_distrito = d.id_distrito) AS iglesias_count,
         (SELECT COUNT(DISTINCT p.id_persona) 
             FROM persona p 
             JOIN cargo_persona cp ON p.id_persona = cp.id_persona 
             JOIN cargo c ON cp.id_cargo = c.id_cargo 
-            WHERE c.nombre_cargo = 'Pastor' AND p.id_distrito = d.id_distrito) AS num_pastores,
-        (SELECT COUNT(*) FROM ministerios WHERE ministerios.id_distrito = d.id_distrito) AS num_ministerios,
+            WHERE c.nombre_cargo = 'Pastor' AND p.id_distrito = d.id_distrito) AS pastores_count,
+        (SELECT COUNT(*) FROM ministerios WHERE ministerios.id_distrito = d.id_distrito) AS ministerios_count,
         (SELECT COUNT(DISTINCT p.id_persona) 
             FROM persona p 
             JOIN ministrosordenados mo ON p.id_persona = mo.persona_id_ministros 
-            WHERE p.id_distrito = d.id_distrito) AS num_ministros_ordenados
+            WHERE p.id_distrito = d.id_distrito) AS ministros_count
     FROM distritos d
-    WHERE d.nombre_distrito != 'Área General'
-
-    UNION ALL
-
-    SELECT 
-        3 AS id_distrito, 
-        'Área General' AS nombre_distrito,
-        SUM(iglesias_count) AS num_iglesias,
-        SUM(pastores_count) AS num_pastores,
-        SUM(ministerios_count) AS num_ministerios,
-        SUM(ministros_count) AS num_ministros_ordenados
-    FROM (
-        SELECT 
-            (SELECT COUNT(*) FROM iglesias WHERE iglesias.id_distrito = d.id_distrito) AS iglesias_count,
-            (SELECT COUNT(DISTINCT p.id_persona) 
-                FROM persona p 
-                JOIN cargo_persona cp ON p.id_persona = cp.id_persona 
-                JOIN cargo c ON cp.id_cargo = c.id_cargo 
-                WHERE c.nombre_cargo = 'Pastor' AND p.id_distrito = d.id_distrito) AS pastores_count,
-            (SELECT COUNT(*) FROM ministerios WHERE ministerios.id_distrito = d.id_distrito) AS ministerios_count,
-            (SELECT COUNT(DISTINCT p.id_persona) 
-                FROM persona p 
-                JOIN ministrosordenados mo ON p.id_persona = mo.persona_id_ministros 
-                WHERE p.id_distrito = d.id_distrito) AS ministros_count
-        FROM distritos d
-        WHERE d.id_distrito IN (1, 2)
-    ) AS suma;
+    WHERE d.id_distrito IN (1, 2)
+) AS suma;
   `;
 
   try {

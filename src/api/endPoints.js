@@ -70,7 +70,7 @@ router.get('/subministerios/:id', getSubministerioById);
 //Rutas para los campos de un reporte
 router.post('/camposReporte', createCamposReporte);
 router.get('/camposReporte/:ministerio_id', getCamposPorMinisterio);
-router.get('/valoresCamposReporte/:Id_Reporte', getValoresCamposPorReporte);
+router.get('/valoresCamposReporte/:id_reporte', getValoresCamposPorReporte);
 
 //Rutas para los reportes de Ministros Ordenados
 router.post('/reportes/ministroOrdenado', createReporteMinistro);

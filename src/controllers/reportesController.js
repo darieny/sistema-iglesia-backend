@@ -71,10 +71,11 @@ export const getReporteById = (req, res) => {
     });
 };
 
-// Crear un nuevo reporte con los valores de los campos
+
+//Función para crear un reporte
 export const createReporte = (req, res) => {
     const { mes, ano, ministerio_id, valoresCampos, usuario_id, iglesia_id, distrito_id } = req.body;
-    console.log('Datos recibidos:', req.body);
+    console.log('Datos recibidos en createReporte:', req.body);
 
     const sqlGetPersona = 'SELECT id_persona FROM persona WHERE usuario_id = $1';
     pool.query(sqlGetPersona, [usuario_id], (err, results) => {
@@ -89,6 +90,7 @@ export const createReporte = (req, res) => {
         }
 
         const persona_id = results.rows[0].id_persona;
+        console.log('id_persona obtenido:', persona_id);
 
         const sqlReporte = `
           INSERT INTO reportesmensuales (mes, ano, ministerio_id, persona_id, distrito_id) 
@@ -101,24 +103,35 @@ export const createReporte = (req, res) => {
             }
 
             const reporteId = result.rows[0].id_reporte;
+            console.log('id_reporte creado:', reporteId);
 
+            // Construir la consulta SQL y los valores dinámicamente
             const sqlValores = `
-              INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) VALUES ($1, $2, $3)
+              INSERT INTO valorescamposreporte (id_reporte, id_tipocampo, valor) VALUES 
+              ${Object.keys(valoresCampos).map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`).join(', ')};
             `;
-            const valores = Object.keys(valoresCampos).map(idTipoCampo => [
-                reporteId, idTipoCampo, valoresCampos[idTipoCampo]
-            ]);
+            const flattenedValues = [reporteId].concat(
+                ...Object.entries(valoresCampos).flatMap(([idTipoCampo, valor]) => [idTipoCampo, valor])
+            );
 
-            pool.query(sqlValores, [valores], (err) => {
+            console.log('Consulta de inserción en valorescamposreporte:', sqlValores);
+            console.log('Valores para la inserción en valorescamposreporte:', flattenedValues);
+
+            pool.query(sqlValores, flattenedValues, (err) => {
                 if (err) {
                     console.error('Error al insertar los valores del reporte:', err);
                     return res.status(500).json({ error: 'Error al insertar los valores del reporte' });
                 }
+                console.log('Valores del reporte insertados correctamente');
                 res.json({ message: 'Reporte creado exitosamente' });
             });
         });
     });
 };
+
+
+
+
 
 // Actualizar un reporte mensual con validaciones
 export const updateReporte = (req, res) => {

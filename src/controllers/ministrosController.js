@@ -260,7 +260,7 @@ export const getReportesByMinistroOrdenado = async (req, res) => {
   try {
     const { rows } = await pool.query(sqlReportes, [id, ministerioId]);
     if (rows.length === 0) {
-      return res.status(404).json({ message: 'No se encontraron reportes.' });
+      return res.json({ reportes: [] }); // Devolvemos un array vacío para reportes
     }
     res.json({ reportes: rows });
   } catch (err) {

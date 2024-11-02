@@ -68,6 +68,7 @@ export const saveValoresCamposReporte = async (req, res) => {
 // Obtener los valores de los campos de un reporte específico
 export const getValoresCamposPorReporte = async (req, res) => {
   const { id_reporte } = req.params;
+  console.log('ID de reporte recibido:', id_reporte);
   const sql = `
     SELECT valorescamposreporte.id_tipocampo, tiposcamposreporte.nombre_campo, valorescamposreporte.valor
     FROM valorescamposreporte
@@ -77,6 +78,7 @@ export const getValoresCamposPorReporte = async (req, res) => {
 
   try {
     const { rows } = await pool.query(sql, [id_reporte]);
+    console.log('Datos obtenidos para valoresCampos:', rows);
     res.json(rows);
   } catch (err) {
     console.error('Error al obtener los valores de los campos del reporte:', err);
