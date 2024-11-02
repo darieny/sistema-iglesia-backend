@@ -290,34 +290,110 @@ const updateMinisterios = (personaId, ministerios, res, updatedPersona) => {
 export const deletePersona = (req, res) => {
     const id = req.params.id;
 
-    // Primero, eliminar todas las asociaciones en cargo_persona
-    const deleteCargosSql = 'DELETE FROM cargo_persona WHERE id_persona = $1';
-    pool.query(deleteCargosSql, [id], (err) => {
+    // Obtener el usuario_id de la persona
+    const sqlGetUsuarioId = 'SELECT usuario_id FROM persona WHERE id_persona = $1';
+    pool.query(sqlGetUsuarioId, [id], (err, result) => {
         if (err) {
-            console.error('Error eliminando cargos asociados:', err);
-            return res.status(500).json({ error: 'Error eliminando cargos asociados.' });
+            console.error('Error obteniendo usuario_id:', err);
+            return res.status(500).json({ error: 'Error obteniendo usuario_id.' });
         }
 
-        // Luego, eliminar todas las asociaciones en persona_ministerio
-        const deleteMinisteriosSql = 'DELETE FROM persona_ministerio WHERE id_persona = $1';
-        pool.query(deleteMinisteriosSql, [id], (err) => {
-            if (err) {
-                console.error('Error eliminando ministerios asociados:', err);
-                return res.status(500).json({ error: 'Error eliminando ministerios asociados.' });
-            }
+        const usuario_id = result.rows[0]?.usuario_id;
 
-            // Finalmente, eliminar la persona de la tabla persona
-            const deletePersonaSql = 'DELETE FROM persona WHERE id_persona = $1';
-            pool.query(deletePersonaSql, [id], (err) => {
+        // Si no hay usuario_id, eliminar directamente cargo_persona y persona_ministerio, luego persona
+        if (!usuario_id) {
+            // Eliminar asociaciones en cargo_persona
+            const deleteCargosSql = 'DELETE FROM cargo_persona WHERE id_persona = $1';
+            pool.query(deleteCargosSql, [id], (err) => {
                 if (err) {
-                    console.error('Error eliminando persona:', err);
-                    return res.status(500).json({ error: 'Error eliminando la persona.' });
+                    console.error('Error eliminando cargos asociados:', err);
+                    return res.status(500).json({ error: 'Error eliminando cargos asociados.' });
                 }
-                res.json({ message: 'Persona eliminada con éxito' });
+
+                // Eliminar asociaciones en persona_ministerio
+                const deleteMinisteriosSql = 'DELETE FROM persona_ministerio WHERE id_persona = $1';
+                pool.query(deleteMinisteriosSql, [id], (err) => {
+                    if (err) {
+                        console.error('Error eliminando ministerios asociados:', err);
+                        return res.status(500).json({ error: 'Error eliminando ministerios asociados.' });
+                    }
+
+                    // Finalmente, eliminar la persona
+                    const deletePersonaSql = 'DELETE FROM persona WHERE id_persona = $1';
+                    pool.query(deletePersonaSql, [id], (err) => {
+                        if (err) {
+                            console.error('Error eliminando persona:', err);
+                            return res.status(500).json({ error: 'Error eliminando la persona.' });
+                        }
+                        res.json({ message: 'Persona eliminada con éxito' });
+                    });
+                });
             });
-        });
+        } else {
+            // Si hay usuario_id, seguir la eliminación en orden de referencias
+            // 1. Eliminar roles en rolesusuarios
+            const deleteRolesSql = 'DELETE FROM rolesusuarios WHERE id_usuarios = $1';
+            pool.query(deleteRolesSql, [usuario_id], (err) => {
+                if (err) {
+                    console.error('Error eliminando roles asociados:', err);
+                    return res.status(500).json({ error: 'Error eliminando roles asociados.' });
+                }
+
+                // 2. Eliminar el login
+                const deleteLoginSql = 'DELETE FROM login WHERE id_usuarios = $1';
+                pool.query(deleteLoginSql, [usuario_id], (err) => {
+                    if (err) {
+                        console.error('Error eliminando login:', err);
+                        return res.status(500).json({ error: 'Error eliminando login.' });
+                    }
+
+                    // 3. Desvincular reportes (NULL en persona_id)
+                    const updateReportesSql = 'UPDATE reportesmensuales SET persona_id = NULL WHERE persona_id = $1';
+                    pool.query(updateReportesSql, [id], (err) => {
+                        if (err) {
+                            console.error('Error desvinculando reportes asociados:', err);
+                            return res.status(500).json({ error: 'Error desvinculando reportes asociados.' });
+                        }
+
+                        // 4. Eliminar asociaciones en cargo_persona
+                        const deleteCargosSql = 'DELETE FROM cargo_persona WHERE id_persona = $1';
+                        pool.query(deleteCargosSql, [id], (err) => {
+                            if (err) {
+                                console.error('Error eliminando cargos asociados:', err);
+                                return res.status(500).json({ error: 'Error eliminando cargos asociados.' });
+                            }
+
+                            // 5. Eliminar asociaciones en persona_ministerio
+                            const deleteMinisteriosSql = 'DELETE FROM persona_ministerio WHERE id_persona = $1';
+                            pool.query(deleteMinisteriosSql, [id], (err) => {
+                                if (err) {
+                                    console.error('Error eliminando ministerios asociados:', err);
+                                    return res.status(500).json({ error: 'Error eliminando ministerios asociados.' });
+                                }
+
+                                // 6. Finalmente, eliminar la persona
+                                const deletePersonaSql = 'DELETE FROM persona WHERE id_persona = $1';
+                                pool.query(deletePersonaSql, [id], (err) => {
+                                    if (err) {
+                                        console.error('Error eliminando persona:', err);
+                                        return res.status(500).json({ error: 'Error eliminando la persona.' });
+                                    }
+                                    res.json({ message: 'Persona eliminada con éxito' });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        }
     });
 };
+
+
+
+
+
+
 
 
 // Buscar personas
