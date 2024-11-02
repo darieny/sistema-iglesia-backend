@@ -144,38 +144,48 @@ const processCargosAndMinisterios = (personaId, cargos, ministerios, res, newPer
             }
 
             const sqlInsertCargos = 'INSERT INTO cargo_persona (id_persona, id_cargo) VALUES ($1, $2)';
-            const cargoValues = cargoIds.map((cargoId) => [personaId, cargoId]);
 
-            pool.query(sqlInsertCargos, [cargoValues], (err) => {
-                if (err) {
-                    console.error('Error asignando cargos:', err);
-                    return res.status(500).json({ error: 'Error asignando los cargos.' });
-                }
-                assignMinisterios(personaId, ministerios, res, newPersona);
+            const queries = cargoIds.map((cargoId) => {
+                return pool.query(sqlInsertCargos, [personaId, cargoId]);
             });
+
+            Promise.all(queries)
+                .then(() => {
+                    assignMinisterios(personaId, ministerios, res, newPersona);
+                })
+                .catch((err) => {
+                    console.error('Error asignando cargos:', err);
+                    res.status(500).json({ error: 'Error asignando los cargos.' });
+                });
         });
     } else {
         assignMinisterios(personaId, ministerios, res, newPersona);
     }
 };
 
+
 // Asignar ministerios a la persona
 const assignMinisterios = (personaId, ministerios, res, newPersona) => {
     if (ministerios.length > 0) {
         const sqlInsertMinisterios = 'INSERT INTO persona_ministerio (id_persona, id_ministerio) VALUES ($1, $2)';
-        const ministerioValues = ministerios.map(ministerioId => [personaId, ministerioId]);
 
-        pool.query(sqlInsertMinisterios, [ministerioValues], (err) => {
-            if (err) {
-                console.error('Error asignando ministerios:', err);
-                return res.status(500).json({ error: 'Error asignando ministerios.' });
-            }
-            res.json({ id: personaId, ...newPersona });
+        const queries = ministerios.map((ministerioId) => {
+            return pool.query(sqlInsertMinisterios, [personaId, ministerioId]);
         });
+
+        Promise.all(queries)
+            .then(() => {
+                res.json({ id: personaId, ...newPersona });
+            })
+            .catch((err) => {
+                console.error('Error asignando ministerios:', err);
+                res.status(500).json({ error: 'Error asignando ministerios.' });
+            });
     } else {
         res.json({ id: personaId, ...newPersona });
     }
 };
+
 
 // Actualizar una persona
 export const updatePersona = (req, res) => {
